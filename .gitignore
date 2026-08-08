@@ -1,0 +1,71 @@
+# ---- Build output ----
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+bld/
+[Ll]og/
+[Ll]ogs/
+
+# ---- Visual Studio / Rider / VS Code ----
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# ---- .NET / NuGet ----
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.nupkg
+*.snupkg
+.packages/
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+# ---- Test / coverage ----
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.coverage
+*.coveragexml
+coverage*.json
+coverage*.xml
+coverage*.info
+TestResults/
+
+# ---- Rider ----
+*.sln.iml
+
+# ---- OS ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ---- Secrets / local config (DO NOT COMMIT) ----
+# Real config with connection strings, Jwt:Key and SAP credentials stays local.
+# A sanitized appsettings.example.json is committed instead.
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.key
+
+# ---- Misc ----
+*.tmp
+*.cache
