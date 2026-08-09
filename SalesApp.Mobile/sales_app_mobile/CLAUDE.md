@@ -83,6 +83,9 @@ request. Un `401` real → limpiar token y mandar a login.
        page, pageSize, totalCount }`
   - `price` viene `null` si no se pasa `priceList`.
   - `available = inStock - committed` (lo vendible ahora).
+  - **La app NO usa `priceList` por ahora** (decisión 2026-08-09): no se envía y el
+    catálogo no muestra precio derivado de lista. El backend sigue soportando el
+    parámetro para retomarlo más adelante.
 
 ### Orders
 
@@ -120,8 +123,10 @@ request. Un `401` real → limpiar token y mandar a login.
 3. **El estado del pedido solo se MUESTRA** (pending/approved/rejected). Prohibido
    construir flujo de aprobar/rechazar en la app — eso es de SAP.
 4. **Sin validación ni UI de límite de crédito** (fuera de alcance).
-5. **Precios**: se resuelven por la lista de precios del cliente seleccionado (pasar
-   `priceList` a `/items`).
+5. **Precios / lista de precios: fuera de alcance por ahora** (decisión 2026-08-09).
+   La app no envía `priceList` ni muestra precio derivado de lista. Si se necesita
+   un precio de línea, va como `unitPrice` manual o lo resuelve SAP al crear el
+   pedido. Retomar cuando se decida usar listas de precios.
 6. **Series de numeración**: son de SAP; el usuario elige entre las permitidas
    (`/salespersons/{code}/series`).
 7. `pending` vs `rejected` en el backend aún no discrimina fino (mismo origen de drafts);
@@ -139,13 +144,20 @@ Base de red + autenticación, ANTES de cualquier pantalla de negocio:
    Unauthenticated / Authenticated).
 6. Pantalla de Login conectada a `/api/auth/login` + ruteo protegido con `go_router`.
 
-## Roadmap de features (cortes verticales, en orden)
+## Roadmap de features
 
-1. Clientes: búsqueda + detalle/contactos.
-2. Ítems: catálogo con precio (por lista del cliente) y stock por almacén.
-3. Armar pedido (Bloc con eventos): cliente → serie → líneas (ítem + cantidad + UM de
-   venta + almacén) → POST.
-4. Lista/detalle de pedidos por estado. (PDF pendiente: endpoint devuelve 501.)
+El plan por etapas (alineado con `DESIGN.md`) vive en **`ROADMAP.md`**. Resumen:
+
+0. Fundaciones de diseño + shell con **side drawer** (no bottom tabs) + re-estilar login.
+1. **Home / Mis pedidos** (segmented control Pendientes/Autorizados/Rechazados) ⭐ arranque.
+2. Detalle de pedido (+ duplicar; PDF = 501).
+3. Nuevo pedido: selección de cliente + sección Clientes.
+4. Nuevo pedido: catálogo de ítems + bottom sheet de línea.
+5. Resumen/confirmación + envío del pedido.
+6. Perfil + pulido.
+
+Ver `ROADMAP.md` para entregables, dependencias y los **gaps mockup ↔ backend**
+pendientes de decisión (TFE UoM, priceList en CustomerDto, payment terms, geo, etc.).
 
 ## Estado actual
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
 import 'router.dart';
+import 'ui/theme/app_theme.dart';
 
 class SalesApp extends StatefulWidget {
   final AuthBloc authBloc;
@@ -29,10 +30,7 @@ class _SalesAppState extends State<SalesApp> {
       child: MaterialApp.router(
         title: 'SalesApp',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorSchemeSeed: Colors.indigo,
-          useMaterial3: true,
-        ),
+        theme: buildAppTheme(),
         routerConfig: _router,
       ),
     );
