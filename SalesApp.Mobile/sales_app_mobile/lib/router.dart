@@ -3,12 +3,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'blocs/contacts/contacts_bloc.dart';
+import 'blocs/customers/customers_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
+import 'data/models/customer.dart';
+import 'data/repositories/customer_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'ui/common/placeholder_screen.dart';
+import 'ui/customers/client_picker_screen.dart';
+import 'ui/customers/customer_detail_screen.dart';
+import 'ui/customers/customers_screen.dart';
 import 'ui/home/home_screen.dart';
 import 'ui/login/login_screen.dart';
 import 'ui/orders/order_detail_screen.dart';
@@ -72,19 +79,51 @@ GoRouter buildRouter(AuthBloc authBloc) {
       ),
       GoRoute(
         path: '/new-order',
-        pageBuilder: (_, _) => appPage(const PlaceholderScreen(
-          title: 'Nuevo pedido',
-          icon: Icons.add_shopping_cart_rounded,
-          stage: 'Etapas 3–5',
-        )),
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                CustomersBloc(context.read<CustomerRepository>())
+                  ..add(const CustomersSearchChanged('')),
+            child: const ClientPickerScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/new-order/catalog',
+        pageBuilder: (context, state) {
+          final customer = state.extra as Customer?;
+          return appPage(PlaceholderScreen(
+            title: customer != null ? 'Catálogo — ${customer.name}' : 'Catálogo',
+            icon: Icons.inventory_2_outlined,
+            stage: 'Ítems + armado: Etapas 4–5',
+          ));
+        },
       ),
       GoRoute(
         path: '/customers',
-        pageBuilder: (_, _) => appPage(const PlaceholderScreen(
-          title: 'Clientes',
-          icon: Icons.people_alt_rounded,
-          stage: 'Etapa 3',
-        )),
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                CustomersBloc(context.read<CustomerRepository>())
+                  ..add(const CustomersSearchChanged('')),
+            child: const CustomersScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/customers/:code',
+        pageBuilder: (context, state) {
+          final code = state.pathParameters['code'] ?? '';
+          final customer = state.extra as Customer?;
+          return appPage(
+            BlocProvider(
+              create: (context) =>
+                  ContactsBloc(context.read<CustomerRepository>(), code)
+                    ..add(const ContactsStarted()),
+              child: CustomerDetailScreen(code: code, customer: customer),
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/profile',

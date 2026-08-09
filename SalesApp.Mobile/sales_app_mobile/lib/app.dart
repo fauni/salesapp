@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'data/repositories/customer_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'router.dart';
 import 'ui/theme/app_theme.dart';
@@ -32,6 +33,9 @@ class _SalesAppState extends State<SalesApp> {
       providers: [
         RepositoryProvider<OrderRepository>(
           create: (_) => OrderRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<CustomerRepository>(
+          create: (_) => CustomerRepository(dio: widget.dio),
         ),
       ],
       child: BlocProvider.value(

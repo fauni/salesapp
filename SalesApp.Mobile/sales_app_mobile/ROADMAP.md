@@ -10,8 +10,9 @@ repos/blocs usando `dio` mockeado.
 **Modelo de navegación (de `DESIGN.md`, NO negociable sin confirmar):** side
 drawer + FAB + segmented control. **No** bottom tab bar.
 
-**Estado:** Etapas 0, 1 y 2 completas (design system + shell + Home/Mis pedidos +
-Detalle de pedido con duplicar). Próximo: Etapa 3 (selección de cliente + Clientes).
+**Estado:** Etapas 0–3 completas (design system + shell + Home/Mis pedidos +
+Detalle de pedido + Clientes/contactos + client picker). Próximo: Etapa 4
+(catálogo de ítems + bottom sheet de línea).
 
 ---
 
@@ -52,7 +53,7 @@ Detalle de pedido con duplicar). Próximo: Etapa 3 (selección de cliente + Clie
 
 **Entregable:** detalle completo + duplicar.
 
-## Etapa 3 — Nuevo pedido: selección de cliente + sección Clientes
+## Etapa 3 — Nuevo pedido: selección de cliente + sección Clientes ✅ COMPLETA
 
 - Modelos: `Customer`, `CustomerContact`; `CustomerRepository` + `CustomersBloc`.
 - UI: search grande + tira de "clientes recientes" (ver Gap #6) + resultados
