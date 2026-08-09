@@ -10,8 +10,8 @@ repos/blocs usando `dio` mockeado.
 **Modelo de navegación (de `DESIGN.md`, NO negociable sin confirmar):** side
 drawer + FAB + segmented control. **No** bottom tab bar.
 
-**Estado:** Etapas 0 y 1 completas (design system + shell + Home/Mis pedidos con
-segmented control, order cards y `OrdersBloc`). Próximo: Etapa 2 (Detalle de pedido).
+**Estado:** Etapas 0, 1 y 2 completas (design system + shell + Home/Mis pedidos +
+Detalle de pedido con duplicar). Próximo: Etapa 3 (selección de cliente + Clientes).
 
 ---
 
@@ -42,7 +42,7 @@ segmented control, order cards y `OrdersBloc`). Próximo: Etapa 2 (Detalle de pe
 
 **Entregable:** pantalla principal con pedidos por estado.
 
-## Etapa 2 — Detalle de pedido
+## Etapa 2 — Detalle de pedido ✅ COMPLETA
 
 - `OrderRepository.getById` + `duplicate`.
 - UI: badge de estado, card "Datos del pedido", card cliente, lista de ítems,

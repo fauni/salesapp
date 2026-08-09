@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
@@ -10,6 +11,7 @@ import 'data/repositories/order_repository.dart';
 import 'ui/common/placeholder_screen.dart';
 import 'ui/home/home_screen.dart';
 import 'ui/login/login_screen.dart';
+import 'ui/orders/order_detail_screen.dart';
 import 'ui/splash/splash_screen.dart';
 
 /// Auth-gated router. `redirect` reads the current AuthBloc state and keeps the
@@ -56,11 +58,17 @@ GoRouter buildRouter(AuthBloc authBloc) {
       ),
       GoRoute(
         path: '/orders/:id',
-        pageBuilder: (context, state) => appPage(PlaceholderScreen(
-          title: 'Pedido ${state.pathParameters['id']}',
-          icon: Icons.receipt_long_rounded,
-          stage: 'Detalle: Etapa 2',
-        )),
+        pageBuilder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return appPage(
+            BlocProvider(
+              create: (context) =>
+                  OrderDetailBloc(context.read<OrderRepository>(), id)
+                    ..add(const OrderDetailStarted()),
+              child: const OrderDetailScreen(),
+            ),
+          );
+        },
       ),
       GoRoute(
         path: '/new-order',
