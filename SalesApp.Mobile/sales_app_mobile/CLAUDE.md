@@ -161,20 +161,17 @@ pendientes de decisión (TFE UoM, priceList en CustomerDto, payment terms, geo, 
 
 ## Estado actual
 
-- Proyecto Flutter scaffoldeado + **primer milestone (red + auth) implementado**:
-  - `lib/config/app_config.dart` — baseUrl / cert self-signed / ventana de refresh (dart-define).
-  - `lib/core/jwt.dart` — lectura de `exp` y claims del JWT (para refresh proactivo y restaurar sesión).
-  - `lib/data/network/api_client.dart` — dio configurado (+ trust self-signed).
-  - `lib/data/network/auth_interceptor.dart` — adjunta Bearer + refresh proactivo + logout en 401.
-  - `lib/data/storage/token_storage.dart` — JWT en secure storage.
-  - `lib/data/models/login_response.dart` (+ `.g.dart`) — json_serializable.
-  - `lib/data/repositories/auth_repository.dart` — login/logout + mapeo de errores.
-  - `lib/blocs/auth/` — `AuthBloc` (eventos/estados) con Equatable.
-  - `lib/ui/{splash,login,home}/` — pantallas.
-  - `lib/router.dart` — go_router con redirect según AuthBloc; `lib/app.dart`, `lib/main.dart` (DI manual).
-  - Verificado: `flutter analyze` (solo infos idiomáticos) y `flutter test` en verde.
-- **Próximo**: feature Clientes (búsqueda + contactos). Para nuevos modelos JSON,
-  correr `dart run build_runner build` tras crearlos.
+- ✅ **Etapas 0–6 del `ROADMAP.md` completas** — MVP funcional end-to-end:
+  auth (login + refresh proactivo), Home/Mis pedidos (segmented control + order
+  cards), detalle + duplicar, Clientes + contactos, catálogo de ítems + carrito,
+  resumen + envío del pedido a SAP, y Perfil.
+- Estructura: `lib/{config,core,data,blocs,ui}` + `router.dart`/`app.dart`/`main.dart`
+  (DI manual). Modelos con `json_serializable` (`dart run build_runner build` tras
+  crear/editar modelos). Estado con `flutter_bloc` (solo Bloc).
+- Verificado: `flutter analyze` sin errores/warnings (solo infos idiomáticos) y
+  `flutter test` en verde (23 tests de blocs/helpers).
+- **Próximo**: ver "Pendiente pre-producción" en `ROADMAP.md` (bundlear fuentes,
+  minSdk Android, íconos) y los gaps de negocio abiertos.
 
 ## Pendientes / notas técnicas
 

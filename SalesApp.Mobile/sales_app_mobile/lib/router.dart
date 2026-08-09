@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,7 +17,6 @@ import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'data/repositories/salesperson_repository.dart';
-import 'ui/common/placeholder_screen.dart';
 import 'ui/customers/client_picker_screen.dart';
 import 'ui/customers/customer_detail_screen.dart';
 import 'ui/customers/customers_screen.dart';
@@ -27,6 +25,7 @@ import 'ui/items/item_catalog_screen.dart';
 import 'ui/login/login_screen.dart';
 import 'ui/orders/order_detail_screen.dart';
 import 'ui/orders/order_summary_screen.dart';
+import 'ui/profile/profile_screen.dart';
 import 'ui/splash/splash_screen.dart';
 
 /// Auth-gated router. `redirect` reads the current AuthBloc state and keeps the
@@ -172,11 +171,7 @@ GoRouter buildRouter(AuthBloc authBloc) {
       ),
       GoRoute(
         path: '/profile',
-        pageBuilder: (_, _) => appPage(const PlaceholderScreen(
-          title: 'Perfil',
-          icon: Icons.person_rounded,
-          stage: 'Etapa 6',
-        )),
+        pageBuilder: (_, _) => appPage(const ProfileScreen()),
       ),
     ],
   );

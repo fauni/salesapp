@@ -69,9 +69,16 @@ class _Content extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
+          child: RefreshIndicator(
+            onRefresh: () async {
+              final bloc = context.read<OrderDetailBloc>();
+              bloc.add(const OrderDetailRefreshed());
+              await bloc.stream
+                  .firstWhere((s) => s.status != OrderDetailStatus.loading);
+            },
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
               Align(
                 alignment: Alignment.centerLeft,
                 child: OrderStatusBadge(status: order.status),
@@ -126,8 +133,9 @@ class _Content extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              _TotalsCard(order: order),
-            ],
+                _TotalsCard(order: order),
+              ],
+            ),
           ),
         ),
         _ActionBar(state: state),

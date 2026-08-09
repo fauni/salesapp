@@ -10,9 +10,17 @@ repos/blocs usando `dio` mockeado.
 **Modelo de navegación (de `DESIGN.md`, NO negociable sin confirmar):** side
 drawer + FAB + segmented control. **No** bottom tab bar.
 
-**Estado:** Etapas 0–5 completas — flujo de creación de pedidos cerrado
-end-to-end (login → clientes → catálogo → armado → resumen → POST a SAP).
-Próximo: Etapa 6 (Perfil + pulido).
+**Estado:** ✅ Etapas 0–6 completas — roadmap del MVP cerrado. 23 tests en verde,
+`flutter analyze` sin errores/warnings.
+
+**Pendiente pre-producción (no bloqueante):**
+- **Bundlear las fuentes** (Plus Jakarta Sans + Inter) como assets para que
+  rendericen sin internet en el servidor on-prem del cliente. Hoy `google_fonts`
+  las baja en runtime (ver nota en `app_theme.dart`).
+- Verificar `minSdkVersion` de Android por `flutter_secure_storage` 11.
+- Íconos de app (launcher) — el nombre visible ya es "SalesApp".
+- Gaps de negocio abiertos (ver tabla abajo): #2, #4, y los de datos de ítems
+  (UoM select, category chips, scan).
 
 ---
 
@@ -83,7 +91,7 @@ Próximo: Etapa 6 (Perfil + pulido).
 
 **Entregable:** crear un pedido real en SAP desde el celular.
 
-## Etapa 6 — Perfil + pulido
+## Etapa 6 — Perfil + pulido ✅ COMPLETA
 
 - Pantalla Perfil (info + logout).
 - Estados "sin conexión" claros (100% online), pull-to-refresh, skeletons,
