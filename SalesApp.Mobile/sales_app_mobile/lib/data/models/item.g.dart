@@ -1,0 +1,49 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'item.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+Item _$ItemFromJson(Map<String, dynamic> json) => Item(
+  code: json['code'] as String,
+  name: json['name'] as String,
+  groupCode: (json['groupCode'] as num?)?.toInt(),
+  price: (json['price'] as num?)?.toDouble(),
+  currency: json['currency'] as String?,
+  priceList: (json['priceList'] as num?)?.toInt(),
+  warehouses:
+      (json['warehouses'] as List<dynamic>?)
+          ?.map((e) => ItemWarehouseStock.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
+);
+
+Map<String, dynamic> _$ItemToJson(Item instance) => <String, dynamic>{
+  'code': instance.code,
+  'name': instance.name,
+  'groupCode': instance.groupCode,
+  'price': instance.price,
+  'currency': instance.currency,
+  'priceList': instance.priceList,
+  'warehouses': instance.warehouses,
+};
+
+ItemWarehouseStock _$ItemWarehouseStockFromJson(Map<String, dynamic> json) =>
+    ItemWarehouseStock(
+      warehouseCode: json['warehouseCode'] as String,
+      inStock: (json['inStock'] as num?)?.toDouble() ?? 0,
+      committed: (json['committed'] as num?)?.toDouble() ?? 0,
+      ordered: (json['ordered'] as num?)?.toDouble() ?? 0,
+      available: (json['available'] as num?)?.toDouble() ?? 0,
+    );
+
+Map<String, dynamic> _$ItemWarehouseStockToJson(ItemWarehouseStock instance) =>
+    <String, dynamic>{
+      'warehouseCode': instance.warehouseCode,
+      'inStock': instance.inStock,
+      'committed': instance.committed,
+      'ordered': instance.ordered,
+      'available': instance.available,
+    };

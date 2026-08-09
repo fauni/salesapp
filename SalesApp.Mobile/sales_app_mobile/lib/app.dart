@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
 import 'data/repositories/customer_repository.dart';
+import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'router.dart';
 import 'ui/theme/app_theme.dart';
@@ -36,6 +37,9 @@ class _SalesAppState extends State<SalesApp> {
         ),
         RepositoryProvider<CustomerRepository>(
           create: (_) => CustomerRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<ItemRepository>(
+          create: (_) => ItemRepository(dio: widget.dio),
         ),
       ],
       child: BlocProvider.value(

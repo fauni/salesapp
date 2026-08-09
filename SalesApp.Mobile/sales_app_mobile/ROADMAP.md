@@ -10,9 +10,8 @@ repos/blocs usando `dio` mockeado.
 **Modelo de navegación (de `DESIGN.md`, NO negociable sin confirmar):** side
 drawer + FAB + segmented control. **No** bottom tab bar.
 
-**Estado:** Etapas 0–3 completas (design system + shell + Home/Mis pedidos +
-Detalle de pedido + Clientes/contactos + client picker). Próximo: Etapa 4
-(catálogo de ítems + bottom sheet de línea).
+**Estado:** Etapas 0–4 completas (… + catálogo de ítems con scroll infinito,
+bottom sheet de línea, carrito y cart pill). Próximo: Etapa 5 (resumen + envío).
 
 ---
 
@@ -61,7 +60,7 @@ Detalle de pedido + Clientes/contactos + client picker). Próximo: Etapa 4
 
 **Entregable:** buscar/seleccionar cliente + ver contactos.
 
-## Etapa 4 — Nuevo pedido: catálogo de ítems + bottom sheet de línea
+## Etapa 4 — Nuevo pedido: catálogo de ítems + bottom sheet de línea ✅ COMPLETA
 
 - Modelos: `Item`, `ItemWarehouseStock`, `PagedResult<T>`; `ItemRepository` +
   `ItemsBloc` (scroll infinito, `pageSize` máx 20).

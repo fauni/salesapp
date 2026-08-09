@@ -3,20 +3,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'blocs/cart/cart_bloc.dart';
 import 'blocs/contacts/contacts_bloc.dart';
 import 'blocs/customers/customers_bloc.dart';
+import 'blocs/items/items_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
 import 'data/models/customer.dart';
 import 'data/repositories/customer_repository.dart';
+import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'ui/common/placeholder_screen.dart';
 import 'ui/customers/client_picker_screen.dart';
 import 'ui/customers/customer_detail_screen.dart';
 import 'ui/customers/customers_screen.dart';
 import 'ui/home/home_screen.dart';
+import 'ui/items/item_catalog_screen.dart';
 import 'ui/login/login_screen.dart';
 import 'ui/orders/order_detail_screen.dart';
 import 'ui/splash/splash_screen.dart';
@@ -88,16 +92,39 @@ GoRouter buildRouter(AuthBloc authBloc) {
           ),
         ),
       ),
-      GoRoute(
-        path: '/new-order/catalog',
-        pageBuilder: (context, state) {
-          final customer = state.extra as Customer?;
-          return appPage(PlaceholderScreen(
-            title: customer != null ? 'Catálogo — ${customer.name}' : 'Catálogo',
-            icon: Icons.inventory_2_outlined,
-            stage: 'Ítems + armado: Etapas 4–5',
-          ));
-        },
+      // The new-order building flow (catalog + summary) shares one CartBloc.
+      ShellRoute(
+        builder: (context, state, child) => BlocProvider(
+          create: (_) => CartBloc(),
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/new-order/catalog',
+            // No customer (cold deep-link) => bounce back to the client picker.
+            redirect: (context, state) =>
+                state.extra is Customer ? null : '/new-order',
+            pageBuilder: (context, state) {
+              final customer = state.extra as Customer;
+              return appPage(
+                BlocProvider(
+                  create: (context) =>
+                      ItemsBloc(context.read<ItemRepository>())
+                        ..add(const ItemsSearchChanged('')),
+                  child: ItemCatalogScreen(customer: customer),
+                ),
+              );
+            },
+          ),
+          GoRoute(
+            path: '/new-order/summary',
+            pageBuilder: (context, state) => appPage(const PlaceholderScreen(
+              title: 'Resumen del pedido',
+              icon: Icons.receipt_long_rounded,
+              stage: 'Envío del pedido: Etapa 5',
+            )),
+          ),
+        ],
       ),
       GoRoute(
         path: '/customers',
