@@ -51,7 +51,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    // Maps SapException -> proper HTTP status for every controller.
+    options.Filters.Add<SalesApp.Api.Filters.SapExceptionFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

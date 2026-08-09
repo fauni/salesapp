@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using SalesApp.Core.Exceptions;
 using SalesApp.Core.Interfaces;
 
 namespace SalesApp.Infrastructure.SapServiceLayer;
@@ -37,7 +38,15 @@ public class SapClient : ISapServiceLayerClient
             response = await ExecuteAsync(method, resourcePath, body, ct);
         }
 
-        response.EnsureSuccessStatusCode();
+        // Surface SAP's own error body instead of swallowing it (CLAUDE.md gotcha).
+        // SapException carries the status + JSON so controllers can map it
+        // (e.g. 400 validation -> BadRequest, 404 -> NotFound).
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(ct);
+            throw new SapException((int)response.StatusCode, errorBody);
+        }
+
         return await response.Content.ReadAsStringAsync(ct);
     }
 
