@@ -1,14 +1,17 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'data/repositories/order_repository.dart';
 import 'router.dart';
 import 'ui/theme/app_theme.dart';
 
 class SalesApp extends StatefulWidget {
   final AuthBloc authBloc;
-  const SalesApp({super.key, required this.authBloc});
+  final Dio dio;
+  const SalesApp({super.key, required this.authBloc, required this.dio});
 
   @override
   State<SalesApp> createState() => _SalesAppState();
@@ -25,13 +28,20 @@ class _SalesAppState extends State<SalesApp> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: widget.authBloc,
-      child: MaterialApp.router(
-        title: 'SalesApp',
-        debugShowCheckedModeBanner: false,
-        theme: buildAppTheme(),
-        routerConfig: _router,
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<OrderRepository>(
+          create: (_) => OrderRepository(dio: widget.dio),
+        ),
+      ],
+      child: BlocProvider.value(
+        value: widget.authBloc,
+        child: MaterialApp.router(
+          title: 'SalesApp',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          routerConfig: _router,
+        ),
       ),
     );
   }

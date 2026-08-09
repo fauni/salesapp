@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'blocs/orders/orders_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
+import 'data/repositories/order_repository.dart';
 import 'ui/common/placeholder_screen.dart';
 import 'ui/home/home_screen.dart';
 import 'ui/login/login_screen.dart';
@@ -42,7 +45,22 @@ GoRouter buildRouter(AuthBloc authBloc) {
       ),
       GoRoute(
         path: '/',
-        pageBuilder: (_, _) => appPage(const HomeScreen()),
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                OrdersBloc(context.read<OrderRepository>())
+                  ..add(const OrdersStarted()),
+            child: const HomeScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/orders/:id',
+        pageBuilder: (context, state) => appPage(PlaceholderScreen(
+          title: 'Pedido ${state.pathParameters['id']}',
+          icon: Icons.receipt_long_rounded,
+          stage: 'Detalle: Etapa 2',
+        )),
       ),
       GoRoute(
         path: '/new-order',

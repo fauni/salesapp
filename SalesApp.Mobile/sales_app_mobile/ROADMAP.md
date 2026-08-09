@@ -10,8 +10,8 @@ repos/blocs usando `dio` mockeado.
 **Modelo de navegación (de `DESIGN.md`, NO negociable sin confirmar):** side
 drawer + FAB + segmented control. **No** bottom tab bar.
 
-**Estado:** Etapa 0 completa (design system + shell drawer + login re-estilado).
-Próximo: Etapa 1 (Home / Mis pedidos).
+**Estado:** Etapas 0 y 1 completas (design system + shell + Home/Mis pedidos con
+segmented control, order cards y `OrdersBloc`). Próximo: Etapa 2 (Detalle de pedido).
 
 ---
 
@@ -30,7 +30,7 @@ Próximo: Etapa 1 (Home / Mis pedidos).
 
 **Entregable:** theme + tokens + drawer navegable + login con el diseño aprobado.
 
-## Etapa 1 — Home / Mis pedidos ⭐ (punto de arranque de features)
+## Etapa 1 — Home / Mis pedidos ⭐ ✅ COMPLETA
 
 - Modelos: `Order`, `OrderLine`, estado.
 - `OrderRepository` (list por status) + `OrdersBloc` con segmented control

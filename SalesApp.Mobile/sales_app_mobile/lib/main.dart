@@ -29,5 +29,5 @@ void main() {
     ),
   );
 
-  runApp(SalesApp(authBloc: authBloc));
+  runApp(SalesApp(authBloc: authBloc, dio: dio));
 }
