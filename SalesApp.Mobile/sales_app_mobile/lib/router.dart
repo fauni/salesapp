@@ -9,12 +9,15 @@ import 'blocs/customers/customers_bloc.dart';
 import 'blocs/items/items_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
+import 'blocs/series/series_bloc.dart';
+import 'blocs/submit_order/submit_order_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
 import 'data/models/customer.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
+import 'data/repositories/salesperson_repository.dart';
 import 'ui/common/placeholder_screen.dart';
 import 'ui/customers/client_picker_screen.dart';
 import 'ui/customers/customer_detail_screen.dart';
@@ -23,6 +26,7 @@ import 'ui/home/home_screen.dart';
 import 'ui/items/item_catalog_screen.dart';
 import 'ui/login/login_screen.dart';
 import 'ui/orders/order_detail_screen.dart';
+import 'ui/orders/order_summary_screen.dart';
 import 'ui/splash/splash_screen.dart';
 
 /// Auth-gated router. `redirect` reads the current AuthBloc state and keeps the
@@ -118,11 +122,25 @@ GoRouter buildRouter(AuthBloc authBloc) {
           ),
           GoRoute(
             path: '/new-order/summary',
-            pageBuilder: (context, state) => appPage(const PlaceholderScreen(
-              title: 'Resumen del pedido',
-              icon: Icons.receipt_long_rounded,
-              stage: 'Envío del pedido: Etapa 5',
-            )),
+            pageBuilder: (context, state) {
+              final code = context.read<AuthBloc>().state.salesEmployeeCode;
+              return appPage(
+                MultiBlocProvider(
+                  providers: [
+                    BlocProvider(
+                      create: (context) => SeriesBloc(
+                        context.read<SalespersonRepository>(), code)
+                        ..add(const SeriesLoadRequested()),
+                    ),
+                    BlocProvider(
+                      create: (context) =>
+                          SubmitOrderBloc(context.read<OrderRepository>()),
+                    ),
+                  ],
+                  child: const OrderSummaryScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../models/cart_line.dart';
 import '../models/order.dart';
 import '../network/api_error.dart';
 
@@ -38,6 +39,40 @@ class OrderRepository {
   Future<Order> duplicate(int id) async {
     try {
       final resp = await _dio.post('/api/orders/$id/duplicate');
+      return Order.fromJson(Map<String, dynamic>.from(resp.data as Map));
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
+  /// POST /api/orders — creates a sales order (RF-06..RF-10). SalesPersonCode is
+  /// omitted so the backend fills it from the caller's JWT. Null line fields are
+  /// dropped so SAP applies its own defaults (e.g. UoM, price from list).
+  Future<Order> create({
+    required String customerCode,
+    int? series,
+    DateTime? dueDate,
+    String? comments,
+    required List<CartLine> lines,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'customerCode': customerCode,
+        'series': ?series,
+        'dueDate': ?dueDate?.toIso8601String(),
+        if (comments != null && comments.isNotEmpty) 'comments': comments,
+        'lines': [
+          for (final l in lines)
+            <String, dynamic>{
+              'itemCode': l.itemCode,
+              'quantity': l.quantity,
+              'salesUnitOfMeasure': ?l.salesUnitOfMeasure,
+              'unitPrice': ?l.unitPrice,
+              'warehouseCode': ?l.warehouseCode,
+            },
+        ],
+      };
+      final resp = await _dio.post('/api/orders', data: body);
       return Order.fromJson(Map<String, dynamic>.from(resp.data as Map));
     } on DioException catch (e) {
       throw mapDioError(e);

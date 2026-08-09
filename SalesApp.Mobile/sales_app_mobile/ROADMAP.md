@@ -10,8 +10,9 @@ repos/blocs usando `dio` mockeado.
 **Modelo de navegación (de `DESIGN.md`, NO negociable sin confirmar):** side
 drawer + FAB + segmented control. **No** bottom tab bar.
 
-**Estado:** Etapas 0–4 completas (… + catálogo de ítems con scroll infinito,
-bottom sheet de línea, carrito y cart pill). Próximo: Etapa 5 (resumen + envío).
+**Estado:** Etapas 0–5 completas — flujo de creación de pedidos cerrado
+end-to-end (login → clientes → catálogo → armado → resumen → POST a SAP).
+Próximo: Etapa 6 (Perfil + pulido).
 
 ---
 
@@ -72,7 +73,7 @@ bottom sheet de línea, carrito y cart pill). Próximo: Etapa 5 (resumen + enví
 
 **Entregable:** catálogo con stock + configurar líneas.
 
-## Etapa 5 — Resumen/confirmación + envío (RF-06..RF-10)
+## Etapa 5 — Resumen/confirmación + envío (RF-06..RF-10) ✅ COMPLETA
 
 - `OrderBuilderBloc` (Bloc "rico": cliente + serie + líneas + submit); modelo
   `CreateOrderRequest`.
