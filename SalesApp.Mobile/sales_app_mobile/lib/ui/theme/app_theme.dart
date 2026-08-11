@@ -4,6 +4,45 @@ import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 import 'app_tokens.dart';
 
+/// App-wide Material [ColorScheme]. Single source of truth for semantic roles;
+/// the raw tokens in [AppColors] mirror these values.
+const ColorScheme appColorScheme = ColorScheme(
+  brightness: Brightness.light,
+
+  // Primary — main action buttons, active selected state.
+  primary: AppColors.primary,
+  onPrimary: Colors.white,
+  primaryContainer: AppColors.primaryTint,
+  onPrimaryContainer: AppColors.primaryDeep,
+
+  // Secondary — success accents, neutral tags (teal).
+  secondary: AppColors.positive,
+  onSecondary: Colors.white,
+  secondaryContainer: AppColors.positiveBg,
+  onSecondaryContainer: Color(0xFF004D40),
+
+  // Tertiary — warning / partial-stock alerts (amber).
+  tertiary: AppColors.critical,
+  onTertiary: Colors.white,
+  tertiaryContainer: AppColors.criticalBg,
+  onTertiaryContainer: Color(0xFF78350F),
+
+  // Error — high priority / rejected.
+  error: AppColors.negative,
+  onError: Colors.white,
+  errorContainer: AppColors.negativeBg,
+  onErrorContainer: Color(0xFF991B1B),
+
+  // Surfaces and background.
+  surface: AppColors.card,
+  onSurface: AppColors.text1,
+  onSurfaceVariant: AppColors.text2,
+
+  // Borders / dividers.
+  outline: AppColors.line,
+  outlineVariant: AppColors.lineSoft,
+);
+
 /// Builds the app-wide [ThemeData] from the DESIGN.md tokens.
 ///
 /// Typography: Plus Jakarta Sans for UI chrome (headings, titles, labels,
@@ -26,14 +65,8 @@ ThemeData buildAppTheme() {
     displayColor: AppColors.text1,
   );
 
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: AppColors.sapBlue,
-    primary: AppColors.sapBlue,
-    surface: AppColors.card,
-  );
-
   return base.copyWith(
-    colorScheme: colorScheme,
+    colorScheme: appColorScheme,
     scaffoldBackgroundColor: AppColors.bgPage,
     textTheme: textTheme,
     appBarTheme: const AppBarTheme(

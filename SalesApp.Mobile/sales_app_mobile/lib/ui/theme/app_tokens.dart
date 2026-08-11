@@ -39,22 +39,19 @@ class AppShadows {
   ];
 }
 
-/// Brand gradients (DESIGN.md).
+/// Brand fills. Kept as `LinearGradient` (same type the widgets consume) but
+/// flattened to a single solid color per the color-scheme redesign.
 class AppGradients {
   AppGradients._();
 
-  /// Topbar, drawer, toast, cart pill, FAB context. ~160deg.
+  /// Topbar, drawer, toast, cart pill, FAB context — solid primary.
   static const shell = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [AppColors.shell2, AppColors.shell1],
+    colors: [AppColors.primary, AppColors.primary],
   );
 
-  /// Primary actions (buttons, brand mark, blue avatars). 135deg.
+  /// Primary actions (buttons, brand mark, blue avatars) — solid primary.
   static const primary = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [AppColors.sapBlue, AppColors.sapBlueDeep],
+    colors: [AppColors.primary, AppColors.primary],
   );
 
   /// Client/order initials avatars (non-blue).

@@ -46,6 +46,7 @@ class _LineConfigSheet extends StatefulWidget {
 
 class _LineConfigSheetState extends State<_LineConfigSheet> {
   late double _quantity;
+  late final TextEditingController _quantityController;
   late final TextEditingController _priceController;
   late final TextEditingController _uomController;
   String? _warehouseCode;
@@ -55,6 +56,8 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     super.initState();
     final e = widget.existing;
     _quantity = e?.quantity ?? 1;
+    _quantityController =
+        TextEditingController(text: formatQty(_quantity));
     _priceController =
         TextEditingController(text: e?.unitPrice?.toString() ?? '');
     _uomController =
@@ -67,19 +70,45 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
 
   @override
   void dispose() {
+    _quantityController.dispose();
     _priceController.dispose();
     _uomController.dispose();
     super.dispose();
   }
 
   void _bump(double delta) {
-    setState(() => _quantity = (_quantity + delta).clamp(1, 999999));
+    setState(() {
+      _quantity = (_quantity + delta).clamp(1, 999999);
+      _quantityController.text = formatQty(_quantity);
+    });
+  }
+
+  /// User typed in the quantity field. Parse permissively; an empty/invalid
+  /// entry leaves [_quantity] untouched (it's re-clamped on submit/blur).
+  void _onQuantityTyped(String raw) {
+    final parsed = double.tryParse(raw.trim().replaceAll(',', '.'));
+    if (parsed != null) {
+      setState(() => _quantity = parsed);
+    } else {
+      setState(() {});
+    }
+  }
+
+  /// Normalize the field when editing finishes: clamp to >= 1 and rewrite the
+  /// text so a blank/zero entry can't be saved.
+  void _commitQuantity() {
+    final clamped = _quantity < 1 ? 1.0 : _quantity.clamp(1, 999999);
+    setState(() {
+      _quantity = clamped.toDouble();
+      _quantityController.text = formatQty(_quantity);
+    });
   }
 
   double? get _unitPrice => double.tryParse(_priceController.text.trim());
   double get _subtotal => _quantity * (_unitPrice ?? 0);
 
   void _save() {
+    _commitQuantity(); // guard against a blank/invalid quantity field
     final uom = _uomController.text.trim();
     Navigator.of(context).pop(LineSaved(CartLine(
       itemCode: widget.item.code,
@@ -258,14 +287,33 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
             children: [
               _stepButton(Icons.remove_rounded, () => _bump(-1)),
               SizedBox(
-                width: 56,
-                child: Text(
-                  formatQty(_quantity),
+                width: 72,
+                child: TextField(
+                  controller: _quantityController,
                   textAlign: TextAlign.center,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                  onChanged: _onQuantityTyped,
+                  onEditingComplete: _commitQuantity,
+                  onTapOutside: (_) {
+                    _commitQuantity();
+                    FocusScope.of(context).unfocus();
+                  },
                   style: GoogleFonts.plusJakartaSans(
                     color: AppColors.text1,
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
                   ),
                 ),
               ),

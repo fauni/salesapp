@@ -38,7 +38,6 @@ class AppScaffold extends StatelessWidget {
         title: Text(
           title,
           style: GoogleFonts.plusJakartaSans(
-            color: Colors.white,
             fontWeight: FontWeight.w700,
             fontSize: 18,
           ),
@@ -58,6 +57,7 @@ class AppScaffold extends StatelessWidget {
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppGradients.shell),
         ),
+        backgroundColor: AppColors.primaryDeep,
       ),
       body: body,
       floatingActionButton: floatingActionButton,

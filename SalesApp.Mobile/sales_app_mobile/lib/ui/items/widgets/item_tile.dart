@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/app_assets.dart';
 import '../../../core/format.dart';
 import '../../../data/models/item.dart';
 import '../../theme/app_colors.dart';
@@ -35,6 +36,16 @@ class ItemTile extends StatelessWidget {
         ),
         child: Row(
           children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Image.asset(
+                AppAssets.productPlaceholder,
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

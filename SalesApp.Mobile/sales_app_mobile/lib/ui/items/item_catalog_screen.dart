@@ -10,6 +10,7 @@ import '../widgets/app_scaffold.dart';
 import '../widgets/search_field.dart';
 import '../widgets/status_message.dart';
 import 'widgets/cart_pill.dart';
+import 'widgets/item_grid_tile.dart';
 import 'widgets/item_tile.dart';
 import 'widgets/line_config_sheet.dart';
 
@@ -25,6 +26,7 @@ class ItemCatalogScreen extends StatefulWidget {
 
 class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
   final _scrollController = ScrollController();
+  bool _isGrid = false;
 
   @override
   void initState() {
@@ -66,6 +68,15 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
     return AppScaffold(
       title: 'Catálogo',
       onBack: () => context.pop(),
+      actions: [
+        IconButton(
+          tooltip: _isGrid ? 'Ver como lista' : 'Ver como cuadrícula',
+          icon: Icon(_isGrid
+              ? Icons.view_list_rounded
+              : Icons.grid_view_rounded),
+          onPressed: () => setState(() => _isGrid = !_isGrid),
+        ),
+      ],
       body: Stack(
         children: [
           Column(
@@ -112,31 +123,61 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
             }
             final cart = context.watch<CartBloc>().state;
             final hasCart = !cart.isEmpty;
-            return ListView.separated(
-              controller: _scrollController,
-              padding: EdgeInsets.fromLTRB(16, 8, 16, hasCart ? 96 : 24),
-              itemCount: state.items.length + (state.loadingMore ? 1 : 0),
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                if (i >= state.items.length) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final item = state.items[i];
-                final line = cart.lineFor(item.code);
-                return ItemTile(
-                  item: item,
-                  inCartQuantity: line?.quantity,
-                  onTap: () => _configureLine(item),
-                );
-              },
-            );
+            return _isGrid
+                ? _grid(state, cart, hasCart)
+                : _listView(state, cart, hasCart);
         }
       },
     );
   }
+
+  Widget _listView(ItemsState state, CartState cart, bool hasCart) {
+    return ListView.separated(
+      controller: _scrollController,
+      padding: EdgeInsets.fromLTRB(16, 8, 16, hasCart ? 96 : 24),
+      itemCount: state.items.length + (state.loadingMore ? 1 : 0),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, i) {
+        if (i >= state.items.length) return _loadingMore();
+        final item = state.items[i];
+        final line = cart.lineFor(item.code);
+        return ItemTile(
+          item: item,
+          inCartQuantity: line?.quantity,
+          onTap: () => _configureLine(item),
+        );
+      },
+    );
+  }
+
+  Widget _grid(ItemsState state, CartState cart, bool hasCart) {
+    return GridView.builder(
+      controller: _scrollController,
+      padding: EdgeInsets.fromLTRB(16, 8, 16, hasCart ? 96 : 24),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 0.72,
+      ),
+      itemCount: state.items.length + (state.loadingMore ? 1 : 0),
+      itemBuilder: (context, i) {
+        if (i >= state.items.length) return _loadingMore();
+        final item = state.items[i];
+        final line = cart.lineFor(item.code);
+        return ItemGridTile(
+          item: item,
+          inCartQuantity: line?.quantity,
+          onTap: () => _configureLine(item),
+        );
+      },
+    );
+  }
+
+  Widget _loadingMore() => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
 
   Widget _cartPill() {
     return BlocBuilder<CartBloc, CartState>(
