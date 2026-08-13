@@ -4,6 +4,7 @@ enum ItemsStatus { loading, success, failure }
 
 class ItemsState extends Equatable {
   final String query;
+  final bool inStockOnly;
   final ItemsStatus status;
   final List<Item> items;
   final int page;
@@ -13,6 +14,7 @@ class ItemsState extends Equatable {
 
   const ItemsState({
     this.query = '',
+    this.inStockOnly = false,
     this.status = ItemsStatus.loading,
     this.items = const [],
     this.page = 1,
@@ -25,6 +27,7 @@ class ItemsState extends Equatable {
 
   ItemsState copyWith({
     String? query,
+    bool? inStockOnly,
     ItemsStatus? status,
     List<Item>? items,
     int? page,
@@ -34,6 +37,7 @@ class ItemsState extends Equatable {
   }) {
     return ItemsState(
       query: query ?? this.query,
+      inStockOnly: inStockOnly ?? this.inStockOnly,
       status: status ?? this.status,
       items: items ?? this.items,
       page: page ?? this.page,
@@ -45,5 +49,5 @@ class ItemsState extends Equatable {
 
   @override
   List<Object?> get props =>
-      [query, status, items, page, totalCount, loadingMore, error];
+      [query, inStockOnly, status, items, page, totalCount, loadingMore, error];
 }

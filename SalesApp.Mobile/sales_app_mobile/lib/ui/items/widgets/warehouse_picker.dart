@@ -65,6 +65,8 @@ class _WarehousePickerScreenState extends State<_WarehousePickerScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgPage,
       appBar: AppBar(
+        backgroundColor: AppColors.primaryDeep,
+        foregroundColor: Colors.white,
         title: Text(
           'Seleccionar almacén',
           style: GoogleFonts.plusJakartaSans(
@@ -75,9 +77,6 @@ class _WarehousePickerScreenState extends State<_WarehousePickerScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => Navigator.of(context).pop(),
-        ),
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppGradients.shell),
         ),
       ),
       body: Column(

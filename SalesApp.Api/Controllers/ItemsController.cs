@@ -29,12 +29,13 @@ public class ItemsController : ControllerBase
 
     public ItemsController(ISapServiceLayerClient sapClient) => _sapClient = sapClient;
 
-    // GET /api/items?search=&category=&priceList=&page=&pageSize=
+    // GET /api/items?search=&category=&priceList=&inStockOnly=&page=&pageSize=
     [HttpGet]
     public async Task<ActionResult<PagedResult<ItemDto>>> Search(
         [FromQuery] string? search,
         [FromQuery] int? category,
         [FromQuery] int? priceList,
+        [FromQuery] bool inStockOnly = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = MaxPageSize,
         CancellationToken ct = default)
@@ -53,6 +54,12 @@ public class ItemsController : ControllerBase
         // category is the SAP ItemsGroupCode.
         if (category.HasValue)
             filters.Add($"ItemsGroupCode eq {category.Value}");
+
+        // Stock filter: QuantityOnStock is a scalar Item field (total on-hand),
+        // so OData can filter/paginate on it. This is NOT "available" (which
+        // subtracts Committed per warehouse and can't be filtered server-side).
+        if (inStockOnly)
+            filters.Add("QuantityOnStock gt 0");
 
         var query = $"Items?$select={ItemSelect}&$orderby=ItemName"
                   + $"&$skip={(page - 1) * pageSize}&$top={pageSize}"

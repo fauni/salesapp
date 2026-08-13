@@ -9,6 +9,8 @@ import '../../blocs/series/series_bloc.dart';
 import '../../blocs/submit_order/submit_order_bloc.dart';
 import '../../core/format.dart';
 import '../../data/models/cart_line.dart';
+import '../../data/models/customer.dart';
+import '../../data/repositories/customer_repository.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/gradient_button.dart';

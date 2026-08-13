@@ -18,3 +18,11 @@ class ItemsSearchChanged extends ItemsEvent {
 class ItemsNextPageRequested extends ItemsEvent {
   const ItemsNextPageRequested();
 }
+
+/// Toggles the "only in-stock" filter. Re-runs the search from page 1.
+class ItemsInStockFilterChanged extends ItemsEvent {
+  final bool inStockOnly;
+  const ItemsInStockFilterChanged(this.inStockOnly);
+  @override
+  List<Object?> get props => [inStockOnly];
+}

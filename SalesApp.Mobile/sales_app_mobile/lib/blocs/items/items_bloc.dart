@@ -22,6 +22,7 @@ class ItemsBloc extends Bloc<ItemsEvent, ItemsState> {
       transformer: _debounceRestart(const Duration(milliseconds: 350)),
     );
     on<ItemsNextPageRequested>(_onNextPage);
+    on<ItemsInStockFilterChanged>(_onStockFilterChanged);
   }
 
   Future<void> _onSearch(
@@ -30,8 +31,33 @@ class ItemsBloc extends Bloc<ItemsEvent, ItemsState> {
   ) async {
     final query = event.query.trim();
     emit(state.copyWith(query: query, status: ItemsStatus.loading));
+    await _runSearch(query: query, inStockOnly: state.inStockOnly, emit: emit);
+  }
+
+  Future<void> _onStockFilterChanged(
+    ItemsInStockFilterChanged event,
+    Emitter<ItemsState> emit,
+  ) async {
+    emit(state.copyWith(
+      inStockOnly: event.inStockOnly,
+      status: ItemsStatus.loading,
+    ));
+    await _runSearch(
+        query: state.query, inStockOnly: event.inStockOnly, emit: emit);
+  }
+
+  /// Shared page-1 search used by both the query and the stock filter.
+  Future<void> _runSearch({
+    required String query,
+    required bool inStockOnly,
+    required Emitter<ItemsState> emit,
+  }) async {
     try {
-      final result = await _repository.search(query: query, page: 1);
+      final result = await _repository.search(
+        query: query,
+        inStockOnly: inStockOnly,
+        page: 1,
+      );
       emit(state.copyWith(
         status: ItemsStatus.success,
         items: result.items,
@@ -59,7 +85,11 @@ class ItemsBloc extends Bloc<ItemsEvent, ItemsState> {
     emit(state.copyWith(loadingMore: true));
     try {
       final next = state.page + 1;
-      final result = await _repository.search(query: state.query, page: next);
+      final result = await _repository.search(
+        query: state.query,
+        inStockOnly: state.inStockOnly,
+        page: next,
+      );
       emit(state.copyWith(
         items: [...state.items, ...result.items],
         page: result.page,

@@ -6,8 +6,11 @@ import '../../blocs/cart/cart_bloc.dart';
 import '../../blocs/items/items_bloc.dart';
 import '../../data/models/customer.dart';
 import '../../data/models/item.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_tokens.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../widgets/app_scaffold.dart';
-import '../widgets/search_field.dart';
 import '../widgets/status_message.dart';
 import 'widgets/cart_pill.dart';
 import 'widgets/item_grid_tile.dart';
@@ -26,6 +29,7 @@ class ItemCatalogScreen extends StatefulWidget {
 
 class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
   bool _isGrid = false;
 
   @override
@@ -39,6 +43,7 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -81,18 +86,56 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
         children: [
           Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: SearchField(
-                  hintText: 'Buscar ítem por nombre o código',
-                  onChanged: (q) =>
-                      context.read<ItemsBloc>().add(ItemsSearchChanged(q)),
-                ),
-              ),
+              _searchHeader(),
               Expanded(child: _list()),
             ],
           ),
           _cartPill(),
+        ],
+      ),
+    );
+  }
+
+  Widget _searchHeader() {
+    return Container(
+      color: AppColors.bgPage,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        children: [
+          _CatalogSearchBar(
+            controller: _searchController,
+            onChanged: (q) =>
+                context.read<ItemsBloc>().add(ItemsSearchChanged(q)),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              BlocBuilder<ItemsBloc, ItemsState>(
+                buildWhen: (a, b) => a.inStockOnly != b.inStockOnly,
+                builder: (context, state) => _StockFilterChip(
+                  active: state.inStockOnly,
+                  onToggle: () => context
+                      .read<ItemsBloc>()
+                      .add(ItemsInStockFilterChanged(!state.inStockOnly)),
+                ),
+              ),
+              const Spacer(),
+              BlocBuilder<ItemsBloc, ItemsState>(
+                buildWhen: (a, b) =>
+                    a.totalCount != b.totalCount || a.status != b.status,
+                builder: (context, state) {
+                  if (state.status != ItemsStatus.success) {
+                    return const SizedBox.shrink();
+                  }
+                  return Text(
+                    '${state.totalCount} ítem(s)',
+                    style: const TextStyle(
+                        color: AppColors.text2, fontSize: 12),
+                  );
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -114,11 +157,14 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
             );
           case ItemsStatus.success:
             if (state.items.isEmpty) {
+              final title = state.query.isNotEmpty
+                  ? 'Sin resultados para "${state.query}"'
+                  : (state.inStockOnly
+                      ? 'No hay ítems con stock'
+                      : 'No hay ítems');
               return StatusMessage(
                 icon: Icons.inventory_2_outlined,
-                title: state.query.isEmpty
-                    ? 'No hay ítems'
-                    : 'Sin resultados para "${state.query}"',
+                title: title,
               );
             }
             final cart = context.watch<CartBloc>().state;
@@ -194,6 +240,129 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Elevated catalog search bar: white card with a strong shadow and the search
+/// icon inside an accented blue square on the left. Shows a clear (×) button
+/// while there's text.
+class _CatalogSearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _CatalogSearchBar({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: AppShadows.floating,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(Icons.search_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              style: GoogleFonts.inter(
+                  color: AppColors.text1, fontSize: 15),
+              decoration: InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: 'Buscar ítem por nombre o código',
+                hintStyle:
+                    GoogleFonts.inter(color: AppColors.text3, fontSize: 15),
+              ),
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              if (value.text.isEmpty) return const SizedBox(width: 6);
+              return IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.clear_rounded,
+                    color: AppColors.text3, size: 20),
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Prominent on/off pill for the "only in-stock" catalog filter. Filled primary
+/// when active, outlined and muted when off.
+class _StockFilterChip extends StatelessWidget {
+  final bool active;
+  final VoidCallback onToggle;
+
+  const _StockFilterChip({required this.active, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onToggle,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(
+              color: active ? AppColors.primary : AppColors.line,
+              width: 1.5,
+            ),
+            boxShadow: active ? AppShadows.card : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                active
+                    ? Icons.check_circle_rounded
+                    : Icons.inventory_2_outlined,
+                size: 18,
+                color: active ? Colors.white : AppColors.text2,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Solo con stock',
+                style: TextStyle(
+                  color: active ? Colors.white : AppColors.text1,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -17,12 +17,14 @@ class ItemRepository {
   /// the backend.
   Future<ItemsPage> search({
     String query = '',
+    bool inStockOnly = false,
     int page = 1,
     int pageSize = 20,
   }) async {
     try {
       final resp = await _dio.get('/api/items', queryParameters: {
         if (query.isNotEmpty) 'search': query,
+        if (inStockOnly) 'inStockOnly': true,
         'page': page,
         'pageSize': pageSize,
       });
