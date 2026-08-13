@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesApp.Api.DTOs;
 using SalesApp.Core.Interfaces;
+using SalesApp.Infrastructure.Catalog;
 
 namespace SalesApp.Api.Controllers;
 
@@ -18,16 +19,25 @@ namespace SalesApp.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly ISapServiceLayerClient _sapClient;
+    private readonly ICatalogResolverService _catalogResolver;
 
     // Same field set for Orders and Drafts (Drafts mirror the document schema).
+    // PaymentGroupCode is the payment-terms field the order inherited from the
+    // customer — surfaced (as a name) in the order detail. (Price list is not a
+    // valid document-header field in this SAP version, so it's not selected.)
     private const string OrderSelect =
         "DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,SalesPersonCode,Series,"
-        + "Comments,DocTotal,DocumentLines";
+        + "Comments,DocTotal,PaymentGroupCode,DocumentLines";
 
     // SAP BoObjectTypes value for a Sales Order (used to filter Drafts).
     private const string SalesOrderObjectCode = "17";
 
-    public OrdersController(ISapServiceLayerClient sapClient) => _sapClient = sapClient;
+    public OrdersController(
+        ISapServiceLayerClient sapClient, ICatalogResolverService catalogResolver)
+    {
+        _sapClient = sapClient;
+        _catalogResolver = catalogResolver;
+    }
 
     // POST /api/orders  (RF-06..RF-10)
     [HttpPost]
@@ -97,13 +107,24 @@ public class OrdersController : ControllerBase
         return Ok(orders);
     }
 
-    // GET /api/orders/{id}
+    // GET /api/orders/{id}?status=pending|approved|rejected
+    // Approved orders live in SAP's `Orders`; pending/rejected are `Drafts`.
+    // The caller (order list) already knows the status, so it tells us which
+    // entity to read — otherwise a draft id would 404 against Orders.
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<OrderDto>> GetById(int id, CancellationToken ct)
+    public async Task<ActionResult<OrderDto>> GetById(
+        int id, [FromQuery] string? status, CancellationToken ct)
     {
-        var json = await _sapClient.GetAsync($"Orders({id})?$select={OrderSelect}", ct);
+        var normalized = (status ?? OrderStatus.Approved).Trim().ToLowerInvariant();
+        var isDraft = normalized is OrderStatus.Pending or OrderStatus.Rejected;
+        var entity = isDraft ? "Drafts" : "Orders";
+        var displayStatus = isDraft ? normalized : OrderStatus.Approved;
+
+        var json = await _sapClient.GetAsync($"{entity}({id})?$select={OrderSelect}", ct);
         using var doc = JsonDocument.Parse(json);
-        return Ok(MapOrder(doc.RootElement, OrderStatus.Approved));
+        var dto = MapOrder(doc.RootElement, displayStatus);
+        await ResolveNamesAsync(dto, ct);
+        return Ok(dto);
     }
 
     // GET /api/orders/{id}/pdf  (RF-16)
@@ -176,8 +197,13 @@ public class OrdersController : ControllerBase
             };
             if (!string.IsNullOrWhiteSpace(l.SalesUnitOfMeasure))
                 line["UoMCode"] = l.SalesUnitOfMeasure;
+            // The rep enters the gross (VAT-inclusive) unit price. In SAP that is
+            // the line's "price after VAT" — DB field RDR1.PriceAfVAT, exposed by
+            // the Service Layer as PriceAfterVAT. SAP back-calculates the net
+            // UnitPrice from it. (Setting UnitPrice instead is wrong when the
+            // document works with gross prices — SAP overwrites it.)
             if (l.UnitPrice.HasValue)
-                line["UnitPrice"] = l.UnitPrice.Value;
+                line["PriceAfterVAT"] = l.UnitPrice.Value;
             if (!string.IsNullOrWhiteSpace(l.WarehouseCode))
                 line["WarehouseCode"] = l.WarehouseCode;
             lines.Add(line);
@@ -221,6 +247,7 @@ public class OrdersController : ControllerBase
             Series = Int(e, "Series"),
             Comments = Str(e, "Comments"),
             DocTotal = Dec(e, "DocTotal") ?? 0m,
+            PaymentTermsGroupCode = Int(e, "PaymentGroupCode"),
             Status = status
         };
 
@@ -238,7 +265,9 @@ public class OrdersController : ControllerBase
                     Description = Str(l, "ItemDescription") ?? Str(l, "Dscription"),
                     Quantity = Dec(l, "Quantity") ?? 0m,
                     SalesUnitOfMeasure = Str(l, "UoMCode") ?? Str(l, "MeasureUnit"),
-                    UnitPrice = Dec(l, "UnitPrice"),
+                    // Surface the gross (VAT-inclusive) price the rep entered —
+                    // SAP's PriceAfterVAT — falling back to the net UnitPrice.
+                    UnitPrice = Dec(l, "PriceAfterVAT") ?? Dec(l, "UnitPrice"),
                     LineTotal = Dec(l, "LineTotal") ?? 0m,
                     WarehouseCode = Str(l, "WarehouseCode")
                 });
@@ -246,6 +275,23 @@ public class OrdersController : ControllerBase
         }
 
         return dto;
+    }
+
+    // Resolves the commercial code fields to human-readable names (salesperson,
+    // price list, payment terms) via the cached catalog resolver. Kept separate
+    // from MapOrder because it's async and only needed for single-order reads.
+    private async Task ResolveNamesAsync(OrderDto dto, CancellationToken ct)
+    {
+        if (dto.SalesPersonCode is int slp && slp > 0)
+        {
+            var name = await _catalogResolver.GetSalesPersonNameAsync(slp, ct);
+            dto.SalesPersonName = string.IsNullOrEmpty(name) ? null : name;
+        }
+        if (dto.PaymentTermsGroupCode is int pt && pt > 0)
+        {
+            var name = await _catalogResolver.GetPaymentTermsNameAsync(pt, ct);
+            dto.PaymentTermsGroupName = string.IsNullOrEmpty(name) ? null : name;
+        }
     }
 
     private static string? Str(JsonElement e, string prop) =>

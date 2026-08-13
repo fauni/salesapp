@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
@@ -53,6 +54,15 @@ class _SalesAppState extends State<SalesApp> {
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
           routerConfig: _router,
+          // Spanish UI (date pickers, dialogs, etc.). The reps are Spanish
+          // speakers; the app only supports es.
+          locale: const Locale('es'),
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('es')],
         ),
       ),
     );

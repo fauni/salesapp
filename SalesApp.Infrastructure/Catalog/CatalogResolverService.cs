@@ -18,6 +18,7 @@ public class CatalogResolverService : ICatalogResolverService
     // Persisted in CatalogCache.CatalogType — do not change once rows exist.
     private const string PriceListType = "PriceList";
     private const string PaymentTermsType = "PaymentTerms";
+    private const string SalesPersonType = "SalesPerson";
 
     private const string TtlParameterKey = "Catalog:CacheTtlHours";
     private static readonly TimeSpan DefaultTtl = TimeSpan.FromHours(6);
@@ -46,6 +47,14 @@ public class CatalogResolverService : ICatalogResolverService
             groupNumber,
             resourcePath: $"PaymentTermsTypes({groupNumber})?$select=GroupNumber,PaymentTermsGroupName",
             nameField: "PaymentTermsGroupName",
+            ct);
+
+    public Task<string> GetSalesPersonNameAsync(int salesEmployeeCode, CancellationToken ct = default) =>
+        ResolveAsync(
+            SalesPersonType,
+            salesEmployeeCode,
+            resourcePath: $"SalesPersons({salesEmployeeCode})?$select=SalesEmployeeCode,SalesEmployeeName",
+            nameField: "SalesEmployeeName",
             ct);
 
     private async Task<string> ResolveAsync(

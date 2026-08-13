@@ -13,6 +13,7 @@ class _FakeRepo extends OrderRepository {
   @override
   Future<Order> create({
     required String customerCode,
+    int? salesPersonCode,
     int? series,
     DateTime? dueDate,
     String? comments,

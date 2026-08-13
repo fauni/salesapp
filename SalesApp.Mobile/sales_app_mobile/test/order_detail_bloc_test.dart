@@ -12,7 +12,7 @@ class _FakeRepo extends OrderRepository {
       : super(dio: Dio());
 
   @override
-  Future<Order> getById(int id) => onGet(id);
+  Future<Order> getById(int id, {String? status}) => onGet(id);
 
   @override
   Future<Order> duplicate(int id) => onDuplicate(id);

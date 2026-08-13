@@ -49,6 +49,8 @@ class CustomerDetail {
   final String? priceListName;
   final int? paymentTermsGroupCode;
   final String? paymentTermsGroupName;
+  final int? salesPersonCode;
+  final String? salesPersonName;
 
   const CustomerDetail({
     required this.code,
@@ -62,6 +64,8 @@ class CustomerDetail {
     this.priceListName,
     this.paymentTermsGroupCode,
     this.paymentTermsGroupName,
+    this.salesPersonCode,
+    this.salesPersonName,
   });
 
   factory CustomerDetail.fromJson(Map<String, dynamic> json) =>

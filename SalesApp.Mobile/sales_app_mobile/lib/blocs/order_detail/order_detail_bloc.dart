@@ -12,7 +12,11 @@ class OrderDetailBloc extends Bloc<OrderDetailEvent, OrderDetailState> {
   final OrderRepository _repository;
   final int orderId;
 
-  OrderDetailBloc(this._repository, this.orderId)
+  /// Order status from the list (pending|approved|rejected) — tells the backend
+  /// whether to read the SAP Order or the Draft. Null falls back to Order.
+  final String? orderStatus;
+
+  OrderDetailBloc(this._repository, this.orderId, {this.orderStatus})
       : super(const OrderDetailState()) {
     on<OrderDetailStarted>((event, emit) => _load(emit));
     on<OrderDetailRefreshed>((event, emit) => _load(emit));
@@ -22,7 +26,7 @@ class OrderDetailBloc extends Bloc<OrderDetailEvent, OrderDetailState> {
   Future<void> _load(Emitter<OrderDetailState> emit) async {
     emit(state.copyWith(status: OrderDetailStatus.loading));
     try {
-      final order = await _repository.getById(orderId);
+      final order = await _repository.getById(orderId, status: orderStatus);
       emit(state.copyWith(status: OrderDetailStatus.success, order: order));
     } on ApiException catch (e) {
       emit(state.copyWith(status: OrderDetailStatus.failure, error: e.message));

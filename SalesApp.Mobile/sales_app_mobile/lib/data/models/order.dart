@@ -13,8 +13,13 @@ class Order {
   final DateTime? docDate;
   final DateTime? dueDate;
   final int? salesPersonCode;
+  final String? salesPersonName;
   final int? series;
   final String? comments;
+  final int? priceListNum;
+  final String? priceListName;
+  final int? paymentTermsGroupCode;
+  final String? paymentTermsGroupName;
   final String status;
   final double docTotal;
   final List<OrderLine> lines;
@@ -27,8 +32,13 @@ class Order {
     this.docDate,
     this.dueDate,
     this.salesPersonCode,
+    this.salesPersonName,
     this.series,
     this.comments,
+    this.priceListNum,
+    this.priceListName,
+    this.paymentTermsGroupCode,
+    this.paymentTermsGroupName,
     required this.status,
     required this.docTotal,
     this.lines = const [],

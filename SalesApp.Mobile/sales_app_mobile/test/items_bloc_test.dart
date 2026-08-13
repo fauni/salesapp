@@ -10,7 +10,12 @@ class _FakeItemRepo extends ItemRepository {
   _FakeItemRepo(this.handler) : super(dio: Dio());
 
   @override
-  Future<ItemsPage> search({String query = '', int page = 1, int pageSize = 20}) async =>
+  Future<ItemsPage> search({
+    String query = '',
+    bool inStockOnly = false,
+    int page = 1,
+    int pageSize = 20,
+  }) async =>
       handler(query, page);
 }
 

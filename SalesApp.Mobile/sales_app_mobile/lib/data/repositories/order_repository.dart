@@ -25,10 +25,17 @@ class OrderRepository {
     }
   }
 
-  /// GET /api/orders/{id}
-  Future<Order> getById(int id) async {
+  /// GET /api/orders/{id}?status=
+  ///
+  /// `status` (pending|approved|rejected) tells the backend whether to read the
+  /// SAP Order or the Draft — pending/rejected orders are Drafts and 404 in
+  /// Orders otherwise.
+  Future<Order> getById(int id, {String? status}) async {
     try {
-      final resp = await _dio.get('/api/orders/$id');
+      final resp = await _dio.get(
+        '/api/orders/$id',
+        queryParameters: status == null ? null : {'status': status},
+      );
       return Order.fromJson(Map<String, dynamic>.from(resp.data as Map));
     } on DioException catch (e) {
       throw mapDioError(e);
@@ -50,6 +57,7 @@ class OrderRepository {
   /// dropped so SAP applies its own defaults (e.g. UoM, price from list).
   Future<Order> create({
     required String customerCode,
+    int? salesPersonCode,
     int? series,
     DateTime? dueDate,
     String? comments,
@@ -58,6 +66,7 @@ class OrderRepository {
     try {
       final body = <String, dynamic>{
         'customerCode': customerCode,
+        'salesPersonCode': ?salesPersonCode,
         'series': ?series,
         'dueDate': ?dueDate?.toIso8601String(),
         if (comments != null && comments.isNotEmpty) 'comments': comments,

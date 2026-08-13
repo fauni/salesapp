@@ -23,9 +23,9 @@ public class CustomersController : ControllerBase
     private const string CustomerSelect =
         "CardCode,CardName,Phone1,Cellular,EmailAddress,FederalTaxID,Currency";
 
-    // Detail additionally needs the two catalog codes we resolve to names.
+    // Detail additionally needs the catalog codes we resolve to names.
     private const string CustomerDetailSelect =
-        CustomerSelect + ",PriceListNum,PayTermsGrpCode";
+        CustomerSelect + ",PriceListNum,PayTermsGrpCode,SalesPersonCode";
 
     public CustomersController(
         ISapServiceLayerClient sapClient, ICatalogResolverService catalogResolver)
@@ -91,7 +91,8 @@ public class CustomersController : ControllerBase
             FederalTaxId = Str(e, "FederalTaxID"),
             Currency = Str(e, "Currency"),
             PriceListNum = IntOrNull(e, "PriceListNum"),
-            PaymentTermsGroupCode = IntOrNull(e, "PayTermsGrpCode")
+            PaymentTermsGroupCode = IntOrNull(e, "PayTermsGrpCode"),
+            SalesPersonCode = IntOrNull(e, "SalesPersonCode")
         };
 
         if (dto.PriceListNum is int priceList)
@@ -104,6 +105,13 @@ public class CustomersController : ControllerBase
         {
             var name = await _catalogResolver.GetPaymentTermsNameAsync(payTerms, ct);
             dto.PaymentTermsGroupName = string.IsNullOrEmpty(name) ? null : name;
+        }
+
+        // SAP uses -1 for "no salesperson assigned"; skip resolving in that case.
+        if (dto.SalesPersonCode is int slpCode && slpCode > 0)
+        {
+            var name = await _catalogResolver.GetSalesPersonNameAsync(slpCode, ct);
+            dto.SalesPersonName = string.IsNullOrEmpty(name) ? null : name;
         }
 
         return Ok(dto);

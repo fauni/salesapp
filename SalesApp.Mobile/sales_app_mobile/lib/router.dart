@@ -9,7 +9,6 @@ import 'blocs/customers/customers_bloc.dart';
 import 'blocs/items/items_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
-import 'blocs/series/series_bloc.dart';
 import 'blocs/submit_order/submit_order_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
@@ -17,7 +16,6 @@ import 'data/models/customer.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
-import 'data/repositories/salesperson_repository.dart';
 import 'ui/customers/client_picker_screen.dart';
 import 'ui/customers/customer_detail_screen.dart';
 import 'ui/customers/customers_screen.dart';
@@ -75,10 +73,14 @@ GoRouter buildRouter(AuthBloc authBloc) {
         path: '/orders/:id',
         pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          // Approved orders are SAP Orders; pending/rejected are Drafts. The
+          // list passes the status so the detail reads the right entity.
+          final status = state.uri.queryParameters['status'];
           return appPage(
             BlocProvider(
               create: (context) =>
-                  OrderDetailBloc(context.read<OrderRepository>(), id)
+                  OrderDetailBloc(context.read<OrderRepository>(), id,
+                      orderStatus: status)
                     ..add(const OrderDetailStarted()),
               child: const OrderDetailScreen(),
             ),
@@ -123,20 +125,10 @@ GoRouter buildRouter(AuthBloc authBloc) {
           GoRoute(
             path: '/new-order/summary',
             pageBuilder: (context, state) {
-              final code = context.read<AuthBloc>().state.salesEmployeeCode;
               return appPage(
-                MultiBlocProvider(
-                  providers: [
-                    BlocProvider(
-                      create: (context) => SeriesBloc(
-                        context.read<SalespersonRepository>(), code)
-                        ..add(const SeriesLoadRequested()),
-                    ),
-                    BlocProvider(
-                      create: (context) =>
-                          SubmitOrderBloc(context.read<OrderRepository>()),
-                    ),
-                  ],
+                BlocProvider(
+                  create: (context) =>
+                      SubmitOrderBloc(context.read<OrderRepository>()),
                   child: const OrderSummaryScreen(),
                 ),
               );

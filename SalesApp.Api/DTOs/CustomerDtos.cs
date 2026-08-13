@@ -22,6 +22,8 @@ public class CustomerDetailDto : CustomerDto
     public string? PriceListName { get; set; }          // resolved via ICatalogResolverService
     public int? PaymentTermsGroupCode { get; set; }     // SAP PayTermsGrpCode (raw code)
     public string? PaymentTermsGroupName { get; set; }  // resolved via ICatalogResolverService
+    public int? SalesPersonCode { get; set; }           // SAP SalesPersonCode (SlpCode) assigned to the customer
+    public string? SalesPersonName { get; set; }        // resolved via ICatalogResolverService
 }
 
 // Contact person of a customer (SAP ContactEmployees) — RF-23.

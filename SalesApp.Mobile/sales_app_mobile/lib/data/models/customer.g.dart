@@ -39,6 +39,8 @@ CustomerDetail _$CustomerDetailFromJson(Map<String, dynamic> json) =>
       priceListName: json['priceListName'] as String?,
       paymentTermsGroupCode: (json['paymentTermsGroupCode'] as num?)?.toInt(),
       paymentTermsGroupName: json['paymentTermsGroupName'] as String?,
+      salesPersonCode: (json['salesPersonCode'] as num?)?.toInt(),
+      salesPersonName: json['salesPersonName'] as String?,
     );
 
 Map<String, dynamic> _$CustomerDetailToJson(CustomerDetail instance) =>
@@ -54,6 +56,8 @@ Map<String, dynamic> _$CustomerDetailToJson(CustomerDetail instance) =>
       'priceListName': instance.priceListName,
       'paymentTermsGroupCode': instance.paymentTermsGroupCode,
       'paymentTermsGroupName': instance.paymentTermsGroupName,
+      'salesPersonCode': instance.salesPersonCode,
+      'salesPersonName': instance.salesPersonName,
     };
 
 CustomerContact _$CustomerContactFromJson(Map<String, dynamic> json) =>

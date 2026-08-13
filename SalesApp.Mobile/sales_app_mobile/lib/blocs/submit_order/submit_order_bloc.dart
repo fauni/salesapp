@@ -27,7 +27,7 @@ class SubmitOrderBloc extends Bloc<SubmitOrderEvent, SubmitOrderState> {
     try {
       final order = await _repository.create(
         customerCode: event.customerCode,
-        series: event.series,
+        salesPersonCode: event.salesPersonCode,
         dueDate: event.dueDate,
         comments: event.comments,
         lines: event.lines,

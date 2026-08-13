@@ -11,4 +11,7 @@ public interface ICatalogResolverService
 
     // groupNumber => PaymentTermsTypes(groupNumber).PaymentTermsGroupName
     Task<string> GetPaymentTermsNameAsync(int groupNumber, CancellationToken ct = default);
+
+    // salesEmployeeCode => SalesPersons(salesEmployeeCode).SalesEmployeeName
+    Task<string> GetSalesPersonNameAsync(int salesEmployeeCode, CancellationToken ct = default);
 }

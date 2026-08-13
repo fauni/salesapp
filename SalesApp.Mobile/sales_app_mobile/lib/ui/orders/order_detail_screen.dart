@@ -90,8 +90,11 @@ class _Content extends StatelessWidget {
                   children: [
                     _InfoRow('Fecha', formatDate(order.docDate)),
                     _InfoRow('Entrega', formatDate(order.dueDate)),
-                    _InfoRow('Vendedor', order.salesPersonCode?.toString() ?? '-'),
-                    _InfoRow('Serie', order.series?.toString() ?? '-'),
+                    _InfoRow(
+                        'Vendedor',
+                        order.salesPersonName ??
+                            order.salesPersonCode?.toString() ??
+                            '-'),
                     if ((order.comments ?? '').isNotEmpty)
                       _InfoRow('Comentarios', order.comments!),
                   ],
@@ -115,6 +118,11 @@ class _Content extends StatelessWidget {
                     Text(order.customerCode,
                         style: GoogleFonts.inter(
                             color: AppColors.text2, fontSize: 13)),
+                    const SizedBox(height: 10),
+                    const Divider(height: 1, color: AppColors.lineSoft),
+                    const SizedBox(height: 6),
+                    _InfoRow('Cond. de pago',
+                        order.paymentTermsGroupName ?? 'No especificada'),
                   ],
                 ),
               ),

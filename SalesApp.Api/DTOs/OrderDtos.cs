@@ -36,8 +36,16 @@ public class OrderDto
     public DateTime? DocDate { get; set; }
     public DateTime? DueDate { get; set; }
     public int? SalesPersonCode { get; set; }
+    public string? SalesPersonName { get; set; }         // resolved from SalesPersonCode
     public int? Series { get; set; }
     public string? Comments { get; set; }
+
+    // Commercial fields the order inherited from the customer at creation time.
+    // Resolved to names via ICatalogResolverService.
+    public int? PriceListNum { get; set; }               // SAP PriceList (raw code)
+    public string? PriceListName { get; set; }
+    public int? PaymentTermsGroupCode { get; set; }      // SAP PaymentGroupCode (raw code)
+    public string? PaymentTermsGroupName { get; set; }
 
     // SAP owns approval. We only DISPLAY the procedure status, never change it.
     public string Status { get; set; } = OrderStatus.Approved; // pending|approved|rejected

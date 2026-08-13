@@ -8,19 +8,20 @@ sealed class SubmitOrderEvent extends Equatable {
 
 class OrderSubmitted extends SubmitOrderEvent {
   final String customerCode;
-  final int? series;
+  final int? salesPersonCode;
   final DateTime? dueDate;
   final String? comments;
   final List<CartLine> lines;
 
   const OrderSubmitted({
     required this.customerCode,
-    this.series,
+    this.salesPersonCode,
     this.dueDate,
     this.comments,
     required this.lines,
   });
 
   @override
-  List<Object?> get props => [customerCode, series, dueDate, comments, lines];
+  List<Object?> get props =>
+      [customerCode, salesPersonCode, dueDate, comments, lines];
 }
