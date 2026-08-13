@@ -108,13 +108,13 @@ posteriores del backend. Estado de cada punto:
 |---|------|-----------|---------------|---------|
 | 1 | **UM de facturación (TFE)** | ✅ **RESUELTO (2026-08-09):** solo UM de venta. `DESIGN.md` actualizado (sin campo TFE) | Hecho | — |
 | 2 | **Descuento % y fecha por línea** | Mockup los pide; backend line solo soporta `itemCode, quantity, salesUnitOfMeasure, unitPrice, warehouseCode` | Dropear de UI **o** agregar al backend | Et. 4/5 |
-| 3 | **Lista de precios del cliente** | ✅ **RESUELTO (2026-08-09):** no se usa por ahora. La app no envía `priceList` ni muestra precio derivado de lista. El código de precio en el backend Items queda intacto (sin usar) para retomarlo luego | Hecho | — |
-| 4 | **Payment terms** | Detalle/resumen lo muestran/seleccionan; backend no expone el campo | Agregar al backend o dropear de UI | Et. 2/5 |
+| 3 | **Lista de precios del cliente** | ✅ **RESUELTO (2026-08-09):** no se usa para precio de línea. **2026-08-12:** el backend ahora expone `priceListName` en `GET /api/customers/{code}` y se muestra en el detalle de cliente (Et. 3), *solo lectura*. El precio de línea sigue fuera de alcance | Hecho | — |
+| 4 | **Payment terms** | ✅ **RESUELTO (2026-08-12):** el backend expone `paymentTermsGroupName` en `GET /api/customers/{code}`; se muestra en el detalle de cliente (Et. 3), *solo lectura*. No se selecciona en el armado de pedido | Hecho | — |
 | 5 | **Geolocalización** | Login (geo pill) y detalle (fila geo) la muestran; backend no tiene campos ni el pedido los recibe | Definir: ¿capturar GPS y enviarlo (backend + permisos) o solo visual/futuro? | Et. 0/2/5 |
 | 6 | **Clientes recientes / scan barras** | "Recientes" choca con 100% online; scan suma dependencia de cámara | Diferibles; "recientes" podría derivar de últimos pedidos | Et. 3/4 |
 
-**Decisiones abiertas restantes:** #2, #4, #5, #6 — ninguna bloquea las Etapas 0/1.
-Conviene cerrar #2/#4 antes de la Etapa 5 (envío de pedido).
+**Decisiones abiertas restantes:** #2, #5, #6 — ninguna bloquea las Etapas 0/1.
+Conviene cerrar #2 antes de la Etapa 5 (envío de pedido).
 
 ---
 

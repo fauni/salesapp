@@ -28,6 +28,57 @@ class Customer {
   Map<String, dynamic> toJson() => _$CustomerToJson(this);
 }
 
+/// Mirrors the backend `CustomerDetailDto` (`GET /api/customers/{code}`).
+///
+/// Superset of [Customer]: adds the two commercial catalog fields the backend
+/// resolves to human-readable names (price list / payment terms). Kept as a
+/// standalone class — json_serializable doesn't cleanly serialize inherited
+/// fields — but exposes [toCustomer] so the header UI can reuse [Customer].
+/// `*Name` fields come pre-resolved by the backend and may be null when SAP has
+/// no value or the code couldn't be resolved; `*Num`/`*Code` are the raw codes.
+@JsonSerializable()
+class CustomerDetail {
+  final String code;
+  final String name;
+  final String? phone;
+  final String? cellular;
+  final String? email;
+  final String? federalTaxId;
+  final String? currency;
+  final int? priceListNum;
+  final String? priceListName;
+  final int? paymentTermsGroupCode;
+  final String? paymentTermsGroupName;
+
+  const CustomerDetail({
+    required this.code,
+    required this.name,
+    this.phone,
+    this.cellular,
+    this.email,
+    this.federalTaxId,
+    this.currency,
+    this.priceListNum,
+    this.priceListName,
+    this.paymentTermsGroupCode,
+    this.paymentTermsGroupName,
+  });
+
+  factory CustomerDetail.fromJson(Map<String, dynamic> json) =>
+      _$CustomerDetailFromJson(json);
+  Map<String, dynamic> toJson() => _$CustomerDetailToJson(this);
+
+  Customer toCustomer() => Customer(
+        code: code,
+        name: name,
+        phone: phone,
+        cellular: cellular,
+        email: email,
+        federalTaxId: federalTaxId,
+        currency: currency,
+      );
+}
+
 /// Mirrors the backend `CustomerContactDto` (SAP ContactEmployees).
 @JsonSerializable()
 class CustomerContact {

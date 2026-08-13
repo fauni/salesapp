@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../blocs/contacts/contacts_bloc.dart';
+import '../../blocs/customer_detail/customer_detail_bloc.dart';
 import '../../data/models/customer.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_scaffold.dart';
@@ -30,13 +31,11 @@ class CustomerDetailScreen extends StatelessWidget {
         children: [
           _header(context),
           const SizedBox(height: 16),
-          Text('CONTACTOS',
-              style: GoogleFonts.plusJakartaSans(
-                color: AppColors.text3,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-                letterSpacing: 0.6,
-              )),
+          _sectionLabel('DATOS COMERCIALES'),
+          const SizedBox(height: 8),
+          const _CommercialSection(),
+          const SizedBox(height: 16),
+          _sectionLabel('CONTACTOS'),
           const SizedBox(height: 8),
           const _ContactsSection(),
         ],
@@ -101,6 +100,90 @@ class CustomerDetailScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+Widget _sectionLabel(String text) => Text(
+      text,
+      style: GoogleFonts.plusJakartaSans(
+        color: AppColors.text3,
+        fontWeight: FontWeight.w700,
+        fontSize: 11,
+        letterSpacing: 0.6,
+      ),
+    );
+
+/// Price list + payment terms, resolved to names by the backend. Shown
+/// read-only — these don't drive line pricing (that stays out of scope).
+class _CommercialSection extends StatelessWidget {
+  const _CommercialSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<CustomerDetailBloc, CustomerDetailState>(
+      builder: (context, state) {
+        switch (state.status) {
+          case CustomerDetailStatus.loading:
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          case CustomerDetailStatus.failure:
+            return StatusMessage(
+              icon: Icons.error_outline_rounded,
+              title: state.error ?? 'No se pudieron cargar los datos comerciales',
+              actionLabel: 'Reintentar',
+              onAction: () => context
+                  .read<CustomerDetailBloc>()
+                  .add(const CustomerDetailRefreshed()),
+            );
+          case CustomerDetailStatus.success:
+            final d = state.detail!;
+            return SectionCard(
+              child: Column(
+                children: [
+                  _kv(Icons.sell_outlined, 'Lista de precios',
+                      d.priceListName, d.priceListNum),
+                  const SizedBox(height: 12),
+                  _kv(Icons.event_note_outlined, 'Condición de pago',
+                      d.paymentTermsGroupName, d.paymentTermsGroupCode),
+                ],
+              ),
+            );
+        }
+      },
+    );
+  }
+
+  /// One label/value row. Falls back to the raw code when the name is missing,
+  /// and to a dash when there's nothing at all.
+  Widget _kv(IconData icon, String label, String? name, int? code) {
+    final value = (name != null && name.isNotEmpty)
+        ? name
+        : (code != null && code > 0 ? '#$code' : '—');
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: AppColors.text3),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: GoogleFonts.inter(
+                      color: AppColors.text3, fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(value,
+                  style: GoogleFonts.inter(
+                      color: AppColors.text1,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

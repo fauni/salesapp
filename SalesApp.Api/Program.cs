@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SalesApp.Api.Services;
 using SalesApp.Core.Interfaces;
+using SalesApp.Infrastructure.Catalog;
 using SalesApp.Infrastructure.Persistence;
 using SalesApp.Infrastructure.SapServiceLayer;
 using System.Text;
@@ -29,6 +30,10 @@ builder.Services.AddHttpClient("SapServiceLayer")
         ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
     });
 builder.Services.AddHttpClient<ISapServiceLayerClient, SapClient>("SapServiceLayer");
+
+// Scoped: depends on AppDbContext (scoped). Reads CatalogCache + resolves SAP
+// catalog names for the customer-detail endpoint only.
+builder.Services.AddScoped<ICatalogResolverService, CatalogResolverService>();
 
 // --- App services ---
 builder.Services.AddScoped<TokenService>();

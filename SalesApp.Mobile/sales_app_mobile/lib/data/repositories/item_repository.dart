@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../models/item.dart';
+import '../models/item_unit_of_measure.dart';
 import '../models/items_page.dart';
 import '../network/api_error.dart';
 
@@ -35,6 +36,23 @@ class ItemRepository {
         pageSize: (map['pageSize'] as num?)?.toInt() ?? pageSize,
         totalCount: (map['totalCount'] as num?)?.toInt() ?? items.length,
       );
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
+  /// GET /api/items/{code}/units-of-measure
+  ///
+  /// Sales UoM options for one item, resolved on demand (called when the
+  /// line-config sheet opens, not in the catalog listing).
+  Future<List<ItemUnitOfMeasure>> unitsOfMeasure(String itemCode) async {
+    try {
+      final resp = await _dio.get(
+          '/api/items/${Uri.encodeComponent(itemCode)}/units-of-measure');
+      return (resp.data as List<dynamic>)
+          .map((e) =>
+              ItemUnitOfMeasure.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
     } on DioException catch (e) {
       throw mapDioError(e);
     }

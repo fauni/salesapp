@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'blocs/auth/auth_bloc.dart';
 import 'blocs/cart/cart_bloc.dart';
 import 'blocs/contacts/contacts_bloc.dart';
+import 'blocs/customer_detail/customer_detail_bloc.dart';
 import 'blocs/customers/customers_bloc.dart';
 import 'blocs/items/items_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
@@ -160,10 +161,19 @@ GoRouter buildRouter(AuthBloc authBloc) {
           final code = state.pathParameters['code'] ?? '';
           final customer = state.extra as Customer?;
           return appPage(
-            BlocProvider(
-              create: (context) =>
-                  ContactsBloc(context.read<CustomerRepository>(), code)
-                    ..add(const ContactsStarted()),
+            MultiBlocProvider(
+              providers: [
+                BlocProvider(
+                  create: (context) =>
+                      CustomerDetailBloc(context.read<CustomerRepository>(), code)
+                        ..add(const CustomerDetailStarted()),
+                ),
+                BlocProvider(
+                  create: (context) =>
+                      ContactsBloc(context.read<CustomerRepository>(), code)
+                        ..add(const ContactsStarted()),
+                ),
+              ],
               child: CustomerDetailScreen(code: code, customer: customer),
             ),
           );

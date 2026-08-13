@@ -70,6 +70,38 @@ namespace SalesApp.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("SalesApp.Core.Entities.CatalogCacheEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CachedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CatalogType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("Code")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CatalogType", "Code")
+                        .IsUnique();
+
+                    b.ToTable("CatalogCache", (string)null);
+                });
+
             modelBuilder.Entity("SalesApp.Core.Entities.Parameter", b =>
                 {
                     b.Property<int>("Id")
@@ -174,6 +206,16 @@ namespace SalesApp.Infrastructure.Migrations
                             Key = "Sap:ServiceLayer:MaxPoolSessions",
                             UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Value = "10"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Description = "Hours before a cached SAP catalog name (price list / payment terms) is refreshed",
+                            Group = "Catalog",
+                            IsEncrypted = false,
+                            Key = "Catalog:CacheTtlHours",
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Value = "6"
                         });
                 });
 

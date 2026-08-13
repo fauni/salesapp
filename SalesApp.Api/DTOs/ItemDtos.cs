@@ -26,3 +26,13 @@ public class ItemWarehouseStockDto
     public decimal Ordered { get; set; }                      // SAP Ordered
     public decimal Available { get; set; }                    // InStock - Committed (sellable now)
 }
+
+// One sales unit-of-measure choice for an item, resolved on demand from the
+// item's UoM group. Loaded when the line-config sheet opens, NOT in the catalog
+// listing (would cost an extra SAP call per item).
+public class ItemUnitOfMeasureDto
+{
+    public string Code { get; set; } = string.Empty;   // SAP UoM Code (goes to order line UoMCode)
+    public string Name { get; set; } = string.Empty;   // SAP UoM Name (display)
+    public bool IsDefault { get; set; }                 // true = item's default sales UoM
+}

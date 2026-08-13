@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesApp.Api.DTOs;
 using SalesApp.Core.Interfaces;
+using SalesApp.Infrastructure.Catalog;
 
 namespace SalesApp.Api.Controllers;
 
@@ -15,13 +16,23 @@ namespace SalesApp.Api.Controllers;
 public class CustomersController : ControllerBase
 {
     private readonly ISapServiceLayerClient _sapClient;
+    private readonly ICatalogResolverService _catalogResolver;
 
     // Fields we actually surface — keep the $select tight so SAP returns less
     // and we never accidentally leak a field we didn't mean to.
     private const string CustomerSelect =
         "CardCode,CardName,Phone1,Cellular,EmailAddress,FederalTaxID,Currency";
 
-    public CustomersController(ISapServiceLayerClient sapClient) => _sapClient = sapClient;
+    // Detail additionally needs the two catalog codes we resolve to names.
+    private const string CustomerDetailSelect =
+        CustomerSelect + ",PriceListNum,PayTermsGrpCode";
+
+    public CustomersController(
+        ISapServiceLayerClient sapClient, ICatalogResolverService catalogResolver)
+    {
+        _sapClient = sapClient;
+        _catalogResolver = catalogResolver;
+    }
 
     // GET /api/customers?search=  (RF-22)
     [HttpGet]
@@ -51,6 +62,51 @@ public class CustomersController : ControllerBase
             .ToList();
 
         return Ok(customers);
+    }
+
+    // GET /api/customers/{code}
+    // Single customer detail. Resolves PriceListNum / PayTermsGrpCode to their
+    // human-readable names via ICatalogResolverService (cached, one keyed SAP
+    // lookup each on a cache miss). The list endpoint above never does this.
+    [HttpGet("{code}")]
+    public async Task<ActionResult<CustomerDetailDto>> Detail(string code, CancellationToken ct)
+    {
+        var key = code.Replace("'", "''");
+        var query = $"BusinessPartners('{Uri.EscapeDataString(key)}')?$select={CustomerDetailSelect}";
+
+        // A non-existent CardCode makes SAP return 404, which SapExceptionFilter
+        // maps to a 404 response — no explicit handling needed here.
+        var json = await _sapClient.GetAsync(query, ct);
+
+        using var doc = JsonDocument.Parse(json);
+        var e = doc.RootElement;
+
+        var dto = new CustomerDetailDto
+        {
+            Code = Str(e, "CardCode") ?? string.Empty,
+            Name = Str(e, "CardName") ?? string.Empty,
+            Phone = Str(e, "Phone1"),
+            Cellular = Str(e, "Cellular"),
+            Email = Str(e, "EmailAddress"),
+            FederalTaxId = Str(e, "FederalTaxID"),
+            Currency = Str(e, "Currency"),
+            PriceListNum = IntOrNull(e, "PriceListNum"),
+            PaymentTermsGroupCode = IntOrNull(e, "PayTermsGrpCode")
+        };
+
+        if (dto.PriceListNum is int priceList)
+        {
+            var name = await _catalogResolver.GetPriceListNameAsync(priceList, ct);
+            dto.PriceListName = string.IsNullOrEmpty(name) ? null : name;
+        }
+
+        if (dto.PaymentTermsGroupCode is int payTerms)
+        {
+            var name = await _catalogResolver.GetPaymentTermsNameAsync(payTerms, ct);
+            dto.PaymentTermsGroupName = string.IsNullOrEmpty(name) ? null : name;
+        }
+
+        return Ok(dto);
     }
 
     // GET /api/customers/{code}/contacts  (RF-23)
@@ -107,4 +163,11 @@ public class CustomersController : ControllerBase
         e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number
             ? v.GetInt32()
             : 0;
+
+    // Nullable variant: distinguishes "field absent / null" from a real 0 so we
+    // don't try to resolve a catalog name for a code SAP didn't send.
+    private static int? IntOrNull(JsonElement e, string prop) =>
+        e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Number
+            ? v.GetInt32()
+            : null;
 }

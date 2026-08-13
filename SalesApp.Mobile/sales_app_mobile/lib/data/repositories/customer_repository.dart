@@ -24,6 +24,19 @@ class CustomerRepository {
     }
   }
 
+  /// GET /api/customers/{code} — full detail, incl. resolved price-list and
+  /// payment-terms names. Heavier than [search] (one keyed SAP lookup each on a
+  /// cache miss), so only call it from the customer-detail screen.
+  Future<CustomerDetail> getByCode(String code) async {
+    try {
+      final resp = await _dio.get('/api/customers/$code');
+      return CustomerDetail.fromJson(
+          Map<String, dynamic>.from(resp.data as Map));
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
   /// GET /api/customers/{code}/contacts
   Future<List<CustomerContact>> getContacts(String code) async {
     try {

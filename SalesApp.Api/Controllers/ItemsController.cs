@@ -80,6 +80,98 @@ public class ItemsController : ControllerBase
         });
     }
 
+    // GET /api/items/{code}/units-of-measure
+    // Sales UoM options for one item, resolved on demand (the line-config sheet
+    // calls this when it opens). Walks: Item -> UoM group -> group definitions
+    // -> UnitOfMeasurements (codes/names). The item's default sales UoM is
+    // flagged IsDefault. A "Manual" group (entry -1) yields a single row from
+    // the item's own InventoryUOM.
+    [HttpGet("{code}/units-of-measure")]
+    public async Task<ActionResult<List<ItemUnitOfMeasureDto>>> UnitsOfMeasure(
+        string code,
+        CancellationToken ct = default)
+    {
+        var itemCode = code.Replace("'", "''");
+        var itemJson = await _sapClient.GetAsync(
+            $"Items('{Uri.EscapeDataString(itemCode)}')"
+            + "?$select=UoMGroupEntry,DefaultSalesUoMEntry,InventoryUOM",
+            ct);
+
+        using var itemDoc = JsonDocument.Parse(itemJson);
+        var itemEl = itemDoc.RootElement;
+
+        var groupEntry = Int(itemEl, "UoMGroupEntry");
+        var salesEntry = Int(itemEl, "DefaultSalesUoMEntry"); // AbsEntry of the default sales UoM
+        var inventoryUom = Str(itemEl, "InventoryUOM");
+
+        // No real UoM group (Manual = -1) → the item has only its inventory unit.
+        if (groupEntry is null or (-1))
+        {
+            return Ok(new List<ItemUnitOfMeasureDto>
+            {
+                new()
+                {
+                    Code = inventoryUom ?? string.Empty,
+                    Name = inventoryUom ?? string.Empty,
+                    IsDefault = true,
+                },
+            });
+        }
+
+        // Group definitions carry the AlternateUoM entries that belong to the group.
+        var groupJson = await _sapClient.GetAsync(
+            $"UnitOfMeasurementGroups({groupEntry})"
+            + "?$select=UoMGroupDefinitionCollection",
+            ct);
+
+        using var groupDoc = JsonDocument.Parse(groupJson);
+        var altEntries = new List<int>();
+        if (groupDoc.RootElement.TryGetProperty("UoMGroupDefinitionCollection", out var defs)
+            && defs.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var d in defs.EnumerateArray())
+            {
+                var alt = Int(d, "AlternateUoM");
+                if (alt.HasValue && !altEntries.Contains(alt.Value))
+                    altEntries.Add(alt.Value);
+            }
+        }
+
+        if (altEntries.Count == 0)
+            return Ok(new List<ItemUnitOfMeasureDto>());
+
+        // Resolve all UoM codes/names in one call: UnitOfMeasurements filtered by
+        // AbsEntry in the set of alternate entries.
+        var inClause = string.Join(" or ", altEntries.Select(a => $"AbsEntry eq {a}"));
+        var uomJson = await _sapClient.GetAsync(
+            "UnitOfMeasurements?$select=AbsEntry,Code,Name"
+            + $"&$filter={Uri.EscapeDataString($"({inClause})")}",
+            ct);
+
+        using var uomDoc = JsonDocument.Parse(uomJson);
+        var result = new List<ItemUnitOfMeasureDto>();
+        if (uomDoc.RootElement.TryGetProperty("value", out var uoms)
+            && uoms.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var u in uoms.EnumerateArray())
+            {
+                var absEntry = Int(u, "AbsEntry");
+                result.Add(new ItemUnitOfMeasureDto
+                {
+                    Code = Str(u, "Code") ?? string.Empty,
+                    Name = Str(u, "Name") ?? Str(u, "Code") ?? string.Empty,
+                    IsDefault = salesEntry.HasValue && absEntry == salesEntry.Value,
+                });
+            }
+        }
+
+        // Ensure exactly one default: if none matched SalesUnitEntry, mark the first.
+        if (result.Count > 0 && !result.Any(r => r.IsDefault))
+            result[0].IsDefault = true;
+
+        return Ok(result);
+    }
+
     private static ItemDto MapItem(JsonElement e, int? priceList)
     {
         var dto = new ItemDto

@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using SalesApp.Core.Exceptions;
 using SalesApp.Core.Interfaces;
 
@@ -10,11 +11,13 @@ public class SapClient : ISapServiceLayerClient
 {
     private readonly HttpClient _httpClient;
     private readonly SapSessionManager _sessionManager;
+    private readonly ILogger<SapClient> _logger;
 
-    public SapClient(HttpClient httpClient, SapSessionManager sessionManager)
+    public SapClient(HttpClient httpClient, SapSessionManager sessionManager, ILogger<SapClient> logger)
     {
         _httpClient = httpClient;
         _sessionManager = sessionManager;
+        _logger = logger;
     }
 
     public Task<string> GetAsync(string resourcePath, CancellationToken ct = default) =>
@@ -58,11 +61,19 @@ public class SapClient : ISapServiceLayerClient
         var request = new HttpRequestMessage(method, resourcePath);
         request.Headers.Add("Cookie", cookie);
 
+        string? json = null;
         if (body != null)
         {
-            var json = JsonSerializer.Serialize(body);
+            json = JsonSerializer.Serialize(body);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
         }
+
+        // Diagnostic: which SAP URL we're hitting and the request body (if any).
+        // GET calls have no body. Note the body may contain business data — keep
+        // this at Information for troubleshooting; drop to Debug if it's too noisy.
+        var absoluteUrl = new Uri(_httpClient.BaseAddress!, resourcePath);
+        _logger.LogInformation("SAP {Method} {Url} | Body: {Body}",
+            method.Method, absoluteUrl, json ?? "(none)");
 
         return await _httpClient.SendAsync(request, ct);
     }

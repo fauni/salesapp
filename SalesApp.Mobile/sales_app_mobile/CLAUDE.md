@@ -65,6 +65,16 @@ request. Un `401` real → limpiar token y mandar a login.
 
 - `GET /api/customers?search=`
   → 200 `[ { code, name, phone, cellular, email, federalTaxId, currency } ]`
+  (lista liviana — NO trae lista de precios ni condición de pago)
+- `GET /api/customers/{code}` — detalle de un cliente
+  → 200 `{ code, name, phone, cellular, email, federalTaxId, currency,
+       priceListNum, priceListName, paymentTermsGroupCode, paymentTermsGroupName }`
+  - `priceListName` / `paymentTermsGroupName`: nombres legibles ya resueltos por
+    el backend (cacheados desde SAP). Pueden venir `null` si SAP no tiene valor o
+    el código no se pudo resolver; `*Num`/`*Code` son los códigos crudos.
+  - Más pesado que la lista (una consulta SAP por cada catálogo en un cache miss):
+    llamarlo solo en la pantalla de detalle de cliente. **Solo visualización** —
+    no se usa para calcular precios de línea (regla 5).
 - `GET /api/customers/{code}/contacts`
   → 200 `[ { internalCode, name, position, phone, mobilePhone, email, active } ]`
 

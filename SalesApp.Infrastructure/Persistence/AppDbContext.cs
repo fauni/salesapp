@@ -17,6 +17,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<UserSalesSeries> UserSalesSeries => Set<UserSalesSeries>();
     public DbSet<Parameter> Parameters => Set<Parameter>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<CatalogCacheEntry> CatalogCache => Set<CatalogCacheEntry>();
     public DbSet<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey> DataProtectionKeys => Set<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -81,6 +82,15 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(a => a.Action).HasMaxLength(100).IsRequired();
         });
 
+        modelBuilder.Entity<CatalogCacheEntry>(entity =>
+        {
+            entity.ToTable("CatalogCache");
+            entity.Property(c => c.CatalogType).HasMaxLength(20).IsRequired();
+            entity.Property(c => c.Name).HasMaxLength(200).IsRequired();
+            // One cached name per (type, code); the resolver upserts on this key.
+            entity.HasIndex(c => new { c.CatalogType, c.Code }).IsUnique();
+        });
+
         // Seed default roles
         modelBuilder.Entity<Role>().HasData(
             new Role { Id = 1, Name = "Salesperson" },
@@ -95,7 +105,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             new Parameter { Id = 3, Key = "Sap:ServiceLayer:Username", Value = "", IsEncrypted = true, Group = "Sap", Description = "Integration user for Service Layer", UpdatedAt = new DateTime(2026, 1, 1) },
             new Parameter { Id = 4, Key = "Sap:ServiceLayer:Password", Value = "", IsEncrypted = true, Group = "Sap", Description = "Integration user password", UpdatedAt = new DateTime(2026, 1, 1) },
             new Parameter { Id = 5, Key = "Sap:ServiceLayer:SessionTimeoutMinutes", Value = "30", IsEncrypted = false, Group = "Sap", Description = "Minutes before B1SESSION expires", UpdatedAt = new DateTime(2026, 1, 1) },
-            new Parameter { Id = 6, Key = "Sap:ServiceLayer:MaxPoolSessions", Value = "10", IsEncrypted = false, Group = "Sap", Description = "Max concurrent Service Layer sessions", UpdatedAt = new DateTime(2026, 1, 1) }
+            new Parameter { Id = 6, Key = "Sap:ServiceLayer:MaxPoolSessions", Value = "10", IsEncrypted = false, Group = "Sap", Description = "Max concurrent Service Layer sessions", UpdatedAt = new DateTime(2026, 1, 1) },
+            // TTL (hours) for the local CatalogCache (PriceList / PaymentTerms names).
+            // Runtime-tunable from the Parameters table without recompiling.
+            new Parameter { Id = 7, Key = "Catalog:CacheTtlHours", Value = "6", IsEncrypted = false, Group = "Catalog", Description = "Hours before a cached SAP catalog name (price list / payment terms) is refreshed", UpdatedAt = new DateTime(2026, 1, 1) }
         );
     }
 }

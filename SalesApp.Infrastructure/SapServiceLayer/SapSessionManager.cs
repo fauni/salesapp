@@ -129,7 +129,20 @@ public class SapSessionManager
         client.BaseAddress = new Uri(_baseUrl.TrimEnd('/') + "/");
 
         var payload = new SapLoginRequest { CompanyDB = _companyDb, UserName = _username, Password = _password };
-        var response = await client.PostAsJsonAsync("Login", payload, SapJsonOptions, ct);
+
+        // SAP Service Layer's Apache front-end returns a 500 HTML page when the
+        // Content-Type carries "charset=utf-8" (what PostAsJsonAsync sends), and
+        // can also choke on Expect: 100-continue. curl/Insomnia work because they
+        // send neither — so we build the request by hand to match them exactly:
+        // Content-Type "application/json" with no charset, and ExpectContinue off.
+        var jsonBody = System.Text.Json.JsonSerializer.Serialize(payload, SapJsonOptions);
+        using var content = new StringContent(jsonBody);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "Login") { Content = content };
+        request.Headers.ExpectContinue = false;
+
+        var response = await client.SendAsync(request, ct);
 
         if (!response.IsSuccessStatusCode)
         {
