@@ -34,6 +34,7 @@ import 'ui/profile/profile_screen.dart';
 import 'ui/splash/splash_screen.dart';
 import 'ui/users/user_form_screen.dart';
 import 'ui/users/users_screen.dart';
+import 'ui/widgets/home_shell.dart';
 
 /// Auth-gated router. `redirect` reads the current AuthBloc state and keeps the
 /// user on the right screen; `refreshListenable` re-runs it on every state
@@ -66,16 +67,74 @@ GoRouter buildRouter(AuthBloc authBloc) {
         path: '/login',
         pageBuilder: (_, _) => appPage(const LoginScreen()),
       ),
-      GoRoute(
-        path: '/',
-        pageBuilder: (context, _) => appPage(
-          BlocProvider(
-            create: (context) =>
-                OrdersBloc(context.read<OrderRepository>())
-                  ..add(const OrdersStarted()),
-            child: const HomeScreen(),
-          ),
-        ),
+      // Bottom nav: Mis pedidos / Clientes / Mi perfil. Each branch keeps its
+      // own navigation stack (StatefulShellRoute), so e.g. drilling into a
+      // customer detail and switching tabs away/back preserves that stack.
+      // Coexists with the side drawer (see HomeShell / app_drawer.dart).
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            HomeShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/',
+              pageBuilder: (context, _) => appPage(
+                BlocProvider(
+                  create: (context) =>
+                      OrdersBloc(context.read<OrderRepository>())
+                        ..add(const OrdersStarted()),
+                  child: const HomeScreen(),
+                ),
+              ),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/customers',
+              pageBuilder: (context, _) => appPage(
+                BlocProvider(
+                  create: (context) =>
+                      CustomersBloc(context.read<CustomerRepository>())
+                        ..add(const CustomersSearchChanged('')),
+                  child: const CustomersScreen(),
+                ),
+              ),
+              routes: [
+                GoRoute(
+                  path: ':code',
+                  pageBuilder: (context, state) {
+                    final code = state.pathParameters['code'] ?? '';
+                    final customer = state.extra as Customer?;
+                    return appPage(
+                      MultiBlocProvider(
+                        providers: [
+                          BlocProvider(
+                            create: (context) => CustomerDetailBloc(
+                                context.read<CustomerRepository>(), code)
+                              ..add(const CustomerDetailStarted()),
+                          ),
+                          BlocProvider(
+                            create: (context) => ContactsBloc(
+                                context.read<CustomerRepository>(), code)
+                              ..add(const ContactsStarted()),
+                          ),
+                        ],
+                        child:
+                            CustomerDetailScreen(code: code, customer: customer),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/profile',
+              pageBuilder: (_, _) => appPage(const ProfileScreen()),
+            ),
+          ]),
+        ],
       ),
       GoRoute(
         path: '/orders/:id',
@@ -181,45 +240,6 @@ GoRouter buildRouter(AuthBloc authBloc) {
             },
           ),
         ],
-      ),
-      GoRoute(
-        path: '/customers',
-        pageBuilder: (context, _) => appPage(
-          BlocProvider(
-            create: (context) =>
-                CustomersBloc(context.read<CustomerRepository>())
-                  ..add(const CustomersSearchChanged('')),
-            child: const CustomersScreen(),
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/customers/:code',
-        pageBuilder: (context, state) {
-          final code = state.pathParameters['code'] ?? '';
-          final customer = state.extra as Customer?;
-          return appPage(
-            MultiBlocProvider(
-              providers: [
-                BlocProvider(
-                  create: (context) =>
-                      CustomerDetailBloc(context.read<CustomerRepository>(), code)
-                        ..add(const CustomerDetailStarted()),
-                ),
-                BlocProvider(
-                  create: (context) =>
-                      ContactsBloc(context.read<CustomerRepository>(), code)
-                        ..add(const ContactsStarted()),
-                ),
-              ],
-              child: CustomerDetailScreen(code: code, customer: customer),
-            ),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/profile',
-        pageBuilder: (_, _) => appPage(const ProfileScreen()),
       ),
       // Admin-only "Usuarios" (see app_drawer.dart — item hidden for non-
       // Administrators; the backend also enforces this via [Authorize(Roles=

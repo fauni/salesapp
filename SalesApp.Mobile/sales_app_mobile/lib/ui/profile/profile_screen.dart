@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/app_version_label.dart';
 import '../widgets/initials_avatar.dart';
 import '../widgets/section_card.dart';
 
@@ -70,11 +71,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Center(
-            child: Text('SalesApp',
-                style: GoogleFonts.inter(
-                    color: AppColors.text3, fontSize: 12)),
-          ),
+          const Center(child: AppVersionLabel(color: AppColors.text3)),
         ],
       ),
     );

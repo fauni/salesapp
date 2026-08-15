@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
-import 'brand_mark.dart';
+import 'app_version_label.dart';
 
 /// Side drawer (DESIGN.md navigation model — NOT bottom tabs). Shell gradient
 /// background; the active section shows a left accent bar in SAP blue and a
@@ -27,6 +27,7 @@ class AppDrawer extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _LogoBanner(),
               _Header(
                 username: auth.username ?? '-',
                 subtitle: auth.roles.isEmpty ? '' : auth.roles.join(', '),
@@ -74,6 +75,10 @@ class AppDrawer extends StatelessWidget {
                   context.read<AuthBloc>().add(const AuthLogoutRequested());
                 },
               ),
+              const SizedBox(height: 12),
+              const Center(
+                child: AppVersionLabel(color: Colors.white54, fontSize: 11),
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -90,6 +95,23 @@ class AppDrawer extends StatelessWidget {
   }
 }
 
+/// Brand banner at the top of the drawer — white strip so the logo (which has
+/// its own light half) reads cleanly instead of fighting the dark shell
+/// gradient behind the rest of the drawer.
+class _LogoBanner extends StatelessWidget {
+  const _LogoBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      child: Image.asset('assets/logos/tomate_facil_com.png', height: 36),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
   final String username;
   final String subtitle;
@@ -98,36 +120,28 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const BrandMark(size: 48),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  username,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subtitle.isNotEmpty)
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
+          Text(
+            username,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
+          if (subtitle.isNotEmpty)
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
         ],
       ),
     );

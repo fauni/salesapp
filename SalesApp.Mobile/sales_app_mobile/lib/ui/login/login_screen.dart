@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
-import '../widgets/brand_mark.dart';
 import '../widgets/gradient_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -57,10 +56,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Center(child: BrandMark(size: 72)),
+                      Center(
+                        child: Image.asset(
+                          'assets/logos/tomate_facil_com.png',
+                          width: double.infinity,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       Text(
-                        'SalesApp',
+                        'Bienvenido',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(
                           color: AppColors.text1,
