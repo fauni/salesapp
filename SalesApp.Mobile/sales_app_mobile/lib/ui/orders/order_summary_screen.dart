@@ -7,13 +7,20 @@ import 'package:intl/intl.dart';
 import '../../blocs/cart/cart_bloc.dart';
 import '../../blocs/submit_order/submit_order_bloc.dart';
 import '../../core/format.dart';
+import '../../data/models/branch.dart';
 import '../../data/models/cart_line.dart';
 import '../../data/models/customer.dart';
+import '../../data/models/order.dart';
+import '../../data/models/project.dart';
 import '../../data/models/sales_person.dart';
 import '../../data/network/api_error.dart';
+import '../../data/repositories/branch_repository.dart';
 import '../../data/repositories/customer_repository.dart';
+import '../../data/repositories/project_repository.dart';
 import '../../data/repositories/salesperson_repository.dart';
 import '../theme/app_colors.dart';
+import 'widgets/branch_picker.dart';
+import 'widgets/project_picker.dart';
 import 'widgets/salesperson_picker.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/gradient_button.dart';
@@ -23,7 +30,12 @@ import '../widgets/section_card.dart';
 /// New order — step 3: review and confirm. Builds the CreateOrderRequest from
 /// the cart + the selected series / due date / comments, and POSTs it.
 class OrderSummaryScreen extends StatefulWidget {
-  const OrderSummaryScreen({super.key});
+  /// When opened from "Duplicar pedido", the order being cloned — used to
+  /// preload the header fields (salesperson, project, branch, comments) that
+  /// live outside the CartBloc. Null for a normal new-order flow.
+  final Order? sourceOrder;
+
+  const OrderSummaryScreen({super.key, this.sourceOrder});
 
   @override
   State<OrderSummaryScreen> createState() => _OrderSummaryScreenState();
@@ -43,10 +55,86 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   // (from the detail), but the rep can pick another.
   SalesPerson? _salesPerson;
 
+  // Optional SAP project tagged on the order.
+  Project? _project;
+
+  // Optional SAP "Sucursal" (distribution rule) tagged on the order.
+  Branch? _branch;
+
+  // Codes read from widget.sourceOrder's lines while their display names are
+  // being resolved from the catalogs (see _resolveSourceProjectName/Branch).
+  String? _sourceProjectCode;
+  String? _sourceBranchCode;
+
+  // Payment terms name the source order was actually created with — takes
+  // priority over the customer's current payment terms (which may have
+  // changed since). Display-only, like the rest of this preload.
+  String? _sourcePaymentTermsGroupName;
+
   @override
   void initState() {
     super.initState();
+    _preloadFromSourceOrder();
     _loadCustomerDetail();
+  }
+
+  /// When duplicating, preload the header fields the CartBloc doesn't carry:
+  /// salesperson, project, branch, comments. These take priority over any
+  /// later default (e.g. the customer's assigned salesperson) — they reflect
+  /// what the original order was created with.
+  void _preloadFromSourceOrder() {
+    final source = widget.sourceOrder;
+    if (source == null) return;
+
+    if (source.salesPersonCode != null && source.salesPersonName != null) {
+      _salesPerson = SalesPerson(
+        code: source.salesPersonCode!,
+        name: source.salesPersonName!,
+      );
+    }
+
+    if (source.paymentTermsGroupCode != null &&
+        source.paymentTermsGroupName != null) {
+      _sourcePaymentTermsGroupName = source.paymentTermsGroupName;
+    }
+
+    // Project/branch live per-line in SAP; every line was tagged the same way
+    // from the order-wide pickers, so the first line that has one represents
+    // the whole order. Only the code is on the line — resolve the display
+    // name from the catalogs once loaded (see below).
+    for (final line in source.lines) {
+      _sourceProjectCode ??= line.projectCode;
+      _sourceBranchCode ??= line.branchCode;
+    }
+    if (_sourceProjectCode != null) _resolveSourceProjectName();
+    if (_sourceBranchCode != null) _resolveSourceBranchName();
+
+    if ((source.comments ?? '').isNotEmpty) {
+      _commentsController.text = source.comments!;
+    }
+  }
+
+  Future<void> _resolveSourceProjectName() async {
+    try {
+      final all = await context.read<ProjectRepository>().listAll();
+      final match =
+          all.where((p) => p.code == _sourceProjectCode).firstOrNull;
+      if (!mounted || match == null || _project != null) return;
+      setState(() => _project = match);
+    } on ApiException {
+      // Non-critical: the rep can still pick a project manually.
+    }
+  }
+
+  Future<void> _resolveSourceBranchName() async {
+    try {
+      final all = await context.read<BranchRepository>().listAll();
+      final match = all.where((b) => b.code == _sourceBranchCode).firstOrNull;
+      if (!mounted || match == null || _branch != null) return;
+      setState(() => _branch = match);
+    } on ApiException {
+      // Non-critical: the rep can still pick a branch manually.
+    }
   }
 
   Future<void> _loadCustomerDetail() async {
@@ -61,7 +149,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         _customerDetail = detail;
         _loadingDetail = false;
         // Preselect the customer's assigned salesperson (unless the rep already
-        // picked one). Needs both a code and a resolved name to show.
+        // picked one, or the source order already set one). Needs both a code
+        // and a resolved name to show.
         if (_salesPerson == null &&
             detail.salesPersonCode != null &&
             detail.salesPersonCode! > 0 &&
@@ -107,6 +196,46 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       selectedCode: _salesPerson?.code,
     );
     if (picked != null) setState(() => _salesPerson = picked);
+  }
+
+  Future<void> _pickProject() async {
+    final picked = await showProjectPicker(
+      context,
+      repository: context.read<ProjectRepository>(),
+      selectedCode: _project?.code,
+    );
+    if (picked != null) {
+      setState(() => _project = picked);
+      // Apply to every line already in the cart, and future ones too.
+      context.read<CartBloc>().add(CartProjectSet(picked.code));
+    }
+  }
+
+  Future<void> _pickBranch() async {
+    final picked = await showBranchPicker(
+      context,
+      repository: context.read<BranchRepository>(),
+      selectedCode: _branch?.code,
+    );
+    if (picked != null) {
+      setState(() => _branch = picked);
+      // Apply to every line already in the cart, and future ones too.
+      context.read<CartBloc>().add(CartBranchSet(picked.code));
+    }
+  }
+
+  /// "Agregar más ítems": in the normal new-order flow this summary sits
+  /// pushed on top of the catalog (same shared CartBloc), so popping back
+  /// works. When duplicating, the summary is opened directly (no catalog
+  /// underneath) — push the duplicate flow's own catalog route instead, which
+  /// shares this same CartBloc via its ShellRoute.
+  void _goToCatalog() {
+    final source = widget.sourceOrder;
+    if (source != null) {
+      context.push('/orders/${source.id}/duplicate/catalog');
+    } else {
+      context.pop();
+    }
   }
 
   Future<void> _pickDueDate() async {
@@ -234,6 +363,46 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               ),
               const SizedBox(height: 12),
               InkWell(
+                onTap: _pickProject,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Proyecto (opcional)',
+                    prefixIcon: Icon(Icons.folder_outlined),
+                    suffixIcon: Icon(Icons.chevron_right_rounded),
+                  ),
+                  child: Text(
+                    _project != null
+                        ? '${_project!.name} (${_project!.code})'
+                        : 'Seleccionar proyecto',
+                    style: TextStyle(
+                        color: _project != null
+                            ? AppColors.text1
+                            : AppColors.text3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: _pickBranch,
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Sucursal (opcional)',
+                    prefixIcon: Icon(Icons.store_mall_directory_outlined),
+                    suffixIcon: Icon(Icons.chevron_right_rounded),
+                  ),
+                  child: Text(
+                    _branch != null
+                        ? '${_branch!.name} (${_branch!.code})'
+                        : 'Seleccionar sucursal',
+                    style: TextStyle(
+                        color: _branch != null
+                            ? AppColors.text1
+                            : AppColors.text3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
                 onTap: _pickDueDate,
                 child: InputDecorator(
                   decoration: InputDecoration(
@@ -286,7 +455,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               ],
               const Divider(height: 1, color: AppColors.lineSoft),
               TextButton.icon(
-                onPressed: () => context.pop(), // back to the catalog
+                onPressed: _goToCatalog,
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Agregar más ítems'),
               ),
@@ -297,9 +466,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
-  /// Commercial detail resolved from the customer detail (price list + payment
-  /// terms). Shows a spinner while loading and muted placeholders when SAP has
-  /// no value.
+  /// Commercial detail resolved from the customer detail (payment terms).
+  /// Shows a spinner while loading and a muted placeholder when SAP has no
+  /// value. Price list is intentionally not shown here for now.
   Widget _customerCommercialInfo() {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -309,16 +478,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           const Divider(height: 1, color: AppColors.lineSoft),
           const SizedBox(height: 12),
           _infoRow(
-            icon: Icons.sell_outlined,
-            label: 'Lista de precios',
-            value: _customerDetail?.priceListName,
-            emptyText: 'No asignada',
-          ),
-          const SizedBox(height: 10),
-          _infoRow(
             icon: Icons.payments_outlined,
             label: 'Condición de pago',
-            value: _customerDetail?.paymentTermsGroupName,
+            // Priority to the source order's own terms when duplicating (they
+            // may differ from what the customer has assigned today).
+            value: _sourcePaymentTermsGroupName ??
+                _customerDetail?.paymentTermsGroupName,
             emptyText: 'No especificada',
           ),
         ],

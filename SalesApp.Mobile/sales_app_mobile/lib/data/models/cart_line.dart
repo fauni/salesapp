@@ -16,6 +16,14 @@ class CartLine extends Equatable {
 
   final String? warehouseCode;
 
+  /// SAP project this line is tagged with. Set from the order-wide project
+  /// picker in the summary — applied to every line, not chosen per-item.
+  final String? projectCode;
+
+  /// SAP "Sucursal" (distribution rule) this line is tagged with. Same
+  /// pattern as [projectCode]: set order-wide from the summary.
+  final String? branchCode;
+
   const CartLine({
     required this.itemCode,
     required this.itemName,
@@ -23,11 +31,38 @@ class CartLine extends Equatable {
     this.salesUnitOfMeasure,
     this.unitPrice,
     this.warehouseCode,
+    this.projectCode,
+    this.branchCode,
   });
 
   double get subtotal => quantity * (unitPrice ?? 0);
 
+  CartLine copyWith({
+    String? projectCode,
+    bool keepProjectCode = false,
+    String? branchCode,
+    bool keepBranchCode = false,
+  }) =>
+      CartLine(
+        itemCode: itemCode,
+        itemName: itemName,
+        quantity: quantity,
+        salesUnitOfMeasure: salesUnitOfMeasure,
+        unitPrice: unitPrice,
+        warehouseCode: warehouseCode,
+        projectCode: keepProjectCode ? this.projectCode : projectCode,
+        branchCode: keepBranchCode ? this.branchCode : branchCode,
+      );
+
   @override
-  List<Object?> get props =>
-      [itemCode, itemName, quantity, salesUnitOfMeasure, unitPrice, warehouseCode];
+  List<Object?> get props => [
+        itemCode,
+        itemName,
+        quantity,
+        salesUnitOfMeasure,
+        unitPrice,
+        warehouseCode,
+        projectCode,
+        branchCode
+      ];
 }

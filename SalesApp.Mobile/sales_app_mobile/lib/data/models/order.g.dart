@@ -26,6 +26,7 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
   paymentTermsGroupCode: (json['paymentTermsGroupCode'] as num?)?.toInt(),
   paymentTermsGroupName: json['paymentTermsGroupName'] as String?,
   status: json['status'] as String,
+  isClosed: json['isClosed'] as bool? ?? false,
   docTotal: (json['docTotal'] as num).toDouble(),
   lines:
       (json['lines'] as List<dynamic>?)
@@ -50,6 +51,7 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'paymentTermsGroupCode': instance.paymentTermsGroupCode,
   'paymentTermsGroupName': instance.paymentTermsGroupName,
   'status': instance.status,
+  'isClosed': instance.isClosed,
   'docTotal': instance.docTotal,
   'lines': instance.lines,
 };
@@ -63,6 +65,8 @@ OrderLine _$OrderLineFromJson(Map<String, dynamic> json) => OrderLine(
   unitPrice: (json['unitPrice'] as num?)?.toDouble(),
   lineTotal: (json['lineTotal'] as num).toDouble(),
   warehouseCode: json['warehouseCode'] as String?,
+  projectCode: json['projectCode'] as String?,
+  branchCode: json['branchCode'] as String?,
 );
 
 Map<String, dynamic> _$OrderLineToJson(OrderLine instance) => <String, dynamic>{
@@ -74,4 +78,6 @@ Map<String, dynamic> _$OrderLineToJson(OrderLine instance) => <String, dynamic>{
   'unitPrice': instance.unitPrice,
   'lineTotal': instance.lineTotal,
   'warehouseCode': instance.warehouseCode,
+  'projectCode': instance.projectCode,
+  'branchCode': instance.branchCode,
 };

@@ -14,6 +14,8 @@ class OrderDetailRefreshed extends OrderDetailEvent {
   const OrderDetailRefreshed();
 }
 
-class OrderDetailDuplicateRequested extends OrderDetailEvent {
-  const OrderDetailDuplicateRequested();
+/// "Cerrar pedido" confirmed by the rep. Only valid for approved orders — the
+/// screen gates the button so this is never fired for pending/rejected drafts.
+class OrderDetailCloseRequested extends OrderDetailEvent {
+  const OrderDetailCloseRequested();
 }

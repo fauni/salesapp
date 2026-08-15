@@ -4,7 +4,20 @@ class CartState extends Equatable {
   final Customer? customer;
   final List<CartLine> lines;
 
-  const CartState({this.customer, this.lines = const []});
+  /// SAP project applied to the whole order (every line). Set from the
+  /// summary's project picker; new lines saved afterwards inherit it too.
+  final String? projectCode;
+
+  /// SAP "Sucursal" (distribution rule) applied to the whole order (every
+  /// line). Same pattern as [projectCode].
+  final String? branchCode;
+
+  const CartState({
+    this.customer,
+    this.lines = const [],
+    this.projectCode,
+    this.branchCode,
+  });
 
   int get count => lines.length;
 
@@ -21,13 +34,24 @@ class CartState extends Equatable {
     return null;
   }
 
-  CartState copyWith({Customer? customer, List<CartLine>? lines}) {
+  CartState copyWith({
+    Customer? customer,
+    List<CartLine>? lines,
+    String? projectCode,
+    bool clearProjectCode = false,
+    String? branchCode,
+    bool clearBranchCode = false,
+  }) {
     return CartState(
       customer: customer ?? this.customer,
       lines: lines ?? this.lines,
+      projectCode:
+          clearProjectCode ? null : (projectCode ?? this.projectCode),
+      branchCode: clearBranchCode ? null : (branchCode ?? this.branchCode),
     );
   }
 
   @override
-  List<Object?> get props => [customer?.code, lines];
+  List<Object?> get props =>
+      [customer?.code, lines, projectCode, branchCode];
 }

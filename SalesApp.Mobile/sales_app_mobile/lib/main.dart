@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
 import 'blocs/auth/auth_bloc.dart';
@@ -9,6 +10,11 @@ import 'data/storage/token_storage.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Diagnóstico: evita que google_fonts intente descargar fuentes por red en
+  // el arranque (posible causa de pantalla negra sin internet). Si esto arregla
+  // el arranque, la solución definitiva es bundlear las .ttf como assets.
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // --- Dependency wiring (manual DI; keep it simple) ---
   final storage = TokenStorage();

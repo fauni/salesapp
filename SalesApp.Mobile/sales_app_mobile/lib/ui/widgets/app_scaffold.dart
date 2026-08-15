@@ -59,7 +59,7 @@ class AppScaffold extends StatelessWidget {
         ),
         backgroundColor: AppColors.primaryDeep,
       ),
-      body: body,
+      body: SafeArea(child: body),
       floatingActionButton: floatingActionButton,
     );
   }

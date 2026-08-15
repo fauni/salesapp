@@ -5,9 +5,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'blocs/auth/auth_bloc.dart';
+import 'data/repositories/branch_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
+import 'data/repositories/project_repository.dart';
 import 'data/repositories/salesperson_repository.dart';
 import 'router.dart';
 import 'ui/theme/app_theme.dart';
@@ -45,6 +47,12 @@ class _SalesAppState extends State<SalesApp> {
         ),
         RepositoryProvider<SalespersonRepository>(
           create: (_) => SalespersonRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<ProjectRepository>(
+          create: (_) => ProjectRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<BranchRepository>(
+          create: (_) => BranchRepository(dio: widget.dio),
         ),
       ],
       child: BlocProvider.value(

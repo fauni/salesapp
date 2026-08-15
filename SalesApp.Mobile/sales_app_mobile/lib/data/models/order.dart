@@ -21,6 +21,12 @@ class Order {
   final int? paymentTermsGroupCode;
   final String? paymentTermsGroupName;
   final String status;
+
+  // True once every line was closed in SAP (via "Cerrar pedido"). Status stays
+  // "approved" — closing isn't an approval-procedure state.
+  @JsonKey(defaultValue: false)
+  final bool isClosed;
+
   final double docTotal;
   final List<OrderLine> lines;
 
@@ -40,6 +46,7 @@ class Order {
     this.paymentTermsGroupCode,
     this.paymentTermsGroupName,
     required this.status,
+    this.isClosed = false,
     required this.docTotal,
     this.lines = const [],
   });
@@ -60,6 +67,8 @@ class OrderLine {
   final double? unitPrice;
   final double lineTotal;
   final String? warehouseCode;
+  final String? projectCode;
+  final String? branchCode;
 
   const OrderLine({
     required this.lineNum,
@@ -70,6 +79,8 @@ class OrderLine {
     this.unitPrice,
     required this.lineTotal,
     this.warehouseCode,
+    this.projectCode,
+    this.branchCode,
   });
 
   factory OrderLine.fromJson(Map<String, dynamic> json) =>

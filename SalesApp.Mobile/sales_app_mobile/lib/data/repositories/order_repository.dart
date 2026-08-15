@@ -52,6 +52,17 @@ class OrderRepository {
     }
   }
 
+  /// POST /api/orders/{id}/close — closes an approved order in SAP (all lines
+  /// -> bost_Close). Not reversible from the app. Returns the refreshed order.
+  Future<Order> close(int id) async {
+    try {
+      final resp = await _dio.post('/api/orders/$id/close');
+      return Order.fromJson(Map<String, dynamic>.from(resp.data as Map));
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
   /// POST /api/orders — creates a sales order (RF-06..RF-10). SalesPersonCode is
   /// omitted so the backend fills it from the caller's JWT. Null line fields are
   /// dropped so SAP applies its own defaults (e.g. UoM, price from list).
@@ -78,6 +89,8 @@ class OrderRepository {
               'salesUnitOfMeasure': ?l.salesUnitOfMeasure,
               'unitPrice': ?l.unitPrice,
               'warehouseCode': ?l.warehouseCode,
+              'projectCode': ?l.projectCode,
+              'branchCode': ?l.branchCode,
             },
         ],
       };

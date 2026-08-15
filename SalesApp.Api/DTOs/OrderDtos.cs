@@ -23,6 +23,8 @@ public class CreateOrderLineRequest
 
     public decimal? UnitPrice { get; set; }                  // optional; SAP resolves from price list if null
     public string? WarehouseCode { get; set; }
+    public string? ProjectCode { get; set; }                 // -> SAP line ProjectCode
+    public string? BranchCode { get; set; }                  // "Sucursal" -> SAP line CostingCode2 (DistributionRules.FactorCode)
 }
 
 // --- Read (RF-12, RF-16) ---
@@ -40,6 +42,10 @@ public class OrderDto
     public int? Series { get; set; }
     public string? Comments { get; set; }
 
+    // SalesApp username that created the order (SAP UDF U_SL_UsuarioApp) — also
+    // used server-side to scope "my orders" for non-Administrator users.
+    public string? CreatedByAppUser { get; set; }
+
     // Commercial fields the order inherited from the customer at creation time.
     // Resolved to names via ICatalogResolverService.
     public int? PriceListNum { get; set; }               // SAP PriceList (raw code)
@@ -49,6 +55,11 @@ public class OrderDto
 
     // SAP owns approval. We only DISPLAY the procedure status, never change it.
     public string Status { get; set; } = OrderStatus.Approved; // pending|approved|rejected
+
+    // True when every line is closed in SAP (LineStatus = bost_Close), i.e. the
+    // order was closed via POST /api/orders/{id}/close. Only meaningful for
+    // approved orders — Status itself doesn't change on close.
+    public bool IsClosed { get; set; }
 
     public decimal DocTotal { get; set; }
     public List<OrderLineDto> Lines { get; set; } = new();
@@ -64,6 +75,9 @@ public class OrderLineDto
     public decimal? UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
     public string? WarehouseCode { get; set; }
+    public string? ProjectCode { get; set; }
+    public string? BranchCode { get; set; }
+    public bool IsClosed { get; set; }                        // SAP LineStatus = bost_Close
 }
 
 // The only three states we ever surface — SAP's Approval Procedure result.

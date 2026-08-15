@@ -7,31 +7,28 @@ import 'package:sales_app_mobile/data/repositories/order_repository.dart';
 
 class _FakeRepo extends OrderRepository {
   final Future<Order> Function(int id) onGet;
-  final Future<Order> Function(int id) onDuplicate;
-  _FakeRepo({required this.onGet, required this.onDuplicate})
-      : super(dio: Dio());
+  final Future<Order> Function(int id)? onClose;
+  _FakeRepo({required this.onGet, this.onClose}) : super(dio: Dio());
 
   @override
   Future<Order> getById(int id, {String? status}) => onGet(id);
 
   @override
-  Future<Order> duplicate(int id) => onDuplicate(id);
+  Future<Order> close(int id) => onClose!(id);
 }
 
-Order _order(int id, {int? docNum}) => Order(
+Order _order(int id, {int? docNum, bool isClosed = false}) => Order(
       id: id,
       docNum: docNum ?? id,
       customerCode: 'C1',
       status: 'approved',
+      isClosed: isClosed,
       docTotal: 250,
     );
 
 void main() {
   test('OrderDetailStarted loads the order', () async {
-    final repo = _FakeRepo(
-      onGet: (id) async => _order(id, docNum: 500),
-      onDuplicate: (_) async => _order(0),
-    );
+    final repo = _FakeRepo(onGet: (id) async => _order(id, docNum: 500));
     final bloc = OrderDetailBloc(repo, 7)..add(const OrderDetailStarted());
 
     await bloc.stream.firstWhere((s) => s.status == OrderDetailStatus.success);
@@ -42,10 +39,8 @@ void main() {
   });
 
   test('a load error moves to failure', () async {
-    final repo = _FakeRepo(
-      onGet: (_) async => throw const ApiException('not found'),
-      onDuplicate: (_) async => _order(0),
-    );
+    final repo =
+        _FakeRepo(onGet: (_) async => throw const ApiException('not found'));
     final bloc = OrderDetailBloc(repo, 7)..add(const OrderDetailStarted());
 
     await bloc.stream.firstWhere((s) => s.status == OrderDetailStatus.failure);
@@ -54,35 +49,37 @@ void main() {
     await bloc.close();
   });
 
-  test('duplicate success exposes the new order', () async {
+  test('OrderDetailCloseRequested closes the order and refreshes in place',
+      () async {
     final repo = _FakeRepo(
       onGet: (id) async => _order(id),
-      onDuplicate: (_) async => _order(99, docNum: 900),
+      onClose: (id) async => _order(id, isClosed: true),
     );
     final bloc = OrderDetailBloc(repo, 7)..add(const OrderDetailStarted());
     await bloc.stream.firstWhere((s) => s.status == OrderDetailStatus.success);
 
-    bloc.add(const OrderDetailDuplicateRequested());
-    await bloc.stream.firstWhere((s) => s.duplicated != null);
+    bloc.add(const OrderDetailCloseRequested());
+    await bloc.stream.firstWhere((s) => !s.closing);
 
-    expect(bloc.state.duplicated?.id, 99);
-    expect(bloc.state.duplicating, isFalse);
+    expect(bloc.state.order?.isClosed, true);
+    expect(bloc.state.status, OrderDetailStatus.success);
+    expect(bloc.state.closeError, isNull);
     await bloc.close();
   });
 
-  test('duplicate error surfaces a message', () async {
+  test('a close error keeps the loaded order and sets closeError', () async {
     final repo = _FakeRepo(
       onGet: (id) async => _order(id),
-      onDuplicate: (_) async => throw const ApiException('sap rejected'),
+      onClose: (_) async => throw const ApiException('SAP rejected the close'),
     );
     final bloc = OrderDetailBloc(repo, 7)..add(const OrderDetailStarted());
     await bloc.stream.firstWhere((s) => s.status == OrderDetailStatus.success);
 
-    bloc.add(const OrderDetailDuplicateRequested());
-    await bloc.stream.firstWhere((s) => s.duplicateError != null);
+    bloc.add(const OrderDetailCloseRequested());
+    await bloc.stream.firstWhere((s) => !s.closing);
 
-    expect(bloc.state.duplicateError, 'sap rejected');
-    expect(bloc.state.duplicating, isFalse);
+    expect(bloc.state.closeError, 'SAP rejected the close');
+    expect(bloc.state.order?.isClosed, false);
     await bloc.close();
   });
 }

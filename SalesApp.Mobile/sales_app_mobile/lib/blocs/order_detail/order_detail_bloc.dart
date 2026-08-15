@@ -20,7 +20,7 @@ class OrderDetailBloc extends Bloc<OrderDetailEvent, OrderDetailState> {
       : super(const OrderDetailState()) {
     on<OrderDetailStarted>((event, emit) => _load(emit));
     on<OrderDetailRefreshed>((event, emit) => _load(emit));
-    on<OrderDetailDuplicateRequested>(_onDuplicate);
+    on<OrderDetailCloseRequested>(_onClose);
   }
 
   Future<void> _load(Emitter<OrderDetailState> emit) async {
@@ -33,17 +33,19 @@ class OrderDetailBloc extends Bloc<OrderDetailEvent, OrderDetailState> {
     }
   }
 
-  Future<void> _onDuplicate(
-    OrderDetailDuplicateRequested event,
-    Emitter<OrderDetailState> emit,
-  ) async {
-    if (state.duplicating) return;
-    emit(state.copyWith(duplicating: true));
+  Future<void> _onClose(
+      OrderDetailCloseRequested event, Emitter<OrderDetailState> emit) async {
+    emit(state.copyWith(closing: true, closeError: null));
     try {
-      final created = await _repository.duplicate(orderId);
-      emit(state.copyWith(duplicating: false, duplicated: created));
+      final order = await _repository.close(orderId);
+      emit(state.copyWith(
+        status: OrderDetailStatus.success,
+        order: order,
+        closing: false,
+      ));
     } on ApiException catch (e) {
-      emit(state.copyWith(duplicating: false, duplicateError: e.message));
+      // Keep the currently-loaded order — only the close attempt failed.
+      emit(state.copyWith(closing: false, closeError: e.message));
     }
   }
 }

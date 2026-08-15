@@ -8,6 +8,7 @@ class AppConfig {
   /// real device or the client's on-prem server, override via --dart-define.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
+    // defaultValue: 'http://177.222.46.162:9090',
     defaultValue: 'https://localhost:7047',
   );
 

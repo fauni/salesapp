@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,6 +14,7 @@ import 'blocs/submit_order/submit_order_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
 import 'data/models/customer.dart';
+import 'data/models/order.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
@@ -86,6 +88,44 @@ GoRouter buildRouter(AuthBloc authBloc) {
             ),
           );
         },
+      ),
+      // "Duplicar pedido": opens the summary precharged from an existing order
+      // (customer + lines), ready to edit before creating a NEW order. Its own
+      // CartBloc — must NOT share the one from the /new-order ShellRoute below,
+      // or the two flows would clobber each other's in-progress cart. Shell so
+      // "Agregar más ítems" can push its own catalog sharing this same
+      // CartBloc/SubmitOrderBloc (mirrors the /new-order catalog+summary shell).
+      // See _DuplicateOrderShell for why extra needs to be captured once.
+      ShellRoute(
+        builder: (context, state, child) =>
+            _DuplicateOrderShell(extra: state.extra, child: child),
+        routes: [
+          GoRoute(
+            path: '/orders/:id/duplicate',
+            pageBuilder: (context, state) {
+              final order = context.read<Order>();
+              return appPage(OrderSummaryScreen(sourceOrder: order));
+            },
+          ),
+          GoRoute(
+            path: '/orders/:id/duplicate/catalog',
+            pageBuilder: (context, state) {
+              final id = state.pathParameters['id'];
+              final customer = context.read<CartBloc>().state.customer!;
+              return appPage(
+                BlocProvider(
+                  create: (context) =>
+                      ItemsBloc(context.read<ItemRepository>())
+                        ..add(const ItemsSearchChanged('')),
+                  child: ItemCatalogScreen(
+                    customer: customer,
+                    summaryRoute: '/orders/$id/duplicate',
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       GoRoute(
         path: '/new-order',
@@ -177,4 +217,48 @@ GoRouter buildRouter(AuthBloc authBloc) {
       ),
     ],
   );
+}
+
+/// Providers shell for the "Duplicar pedido" flow (summary + its own
+/// catalog). [extra] is the source [Order], only actually passed on the
+/// initial push — captured once in [initState] so CartBloc/SubmitOrderBloc/
+/// the Order itself stay the same instance while navigating between the
+/// flow's nested routes (which push back into this shell without re-sending
+/// extra).
+class _DuplicateOrderShell extends StatefulWidget {
+  final Object? extra;
+  final Widget child;
+
+  const _DuplicateOrderShell({required this.extra, required this.child});
+
+  @override
+  State<_DuplicateOrderShell> createState() => _DuplicateOrderShellState();
+}
+
+class _DuplicateOrderShellState extends State<_DuplicateOrderShell> {
+  late final Order _order = widget.extra as Order;
+  late final CartBloc _cartBloc = CartBloc()
+    ..add(CartInitializedFromOrder(_order));
+
+  @override
+  void dispose() {
+    _cartBloc.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _cartBloc),
+        BlocProvider(
+          create: (context) => SubmitOrderBloc(context.read<OrderRepository>()),
+        ),
+      ],
+      child: RepositoryProvider<Order>.value(
+        value: _order,
+        child: widget.child,
+      ),
+    );
+  }
 }

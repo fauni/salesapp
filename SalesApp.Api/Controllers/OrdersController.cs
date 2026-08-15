@@ -25,9 +25,11 @@ public class OrdersController : ControllerBase
     // PaymentGroupCode is the payment-terms field the order inherited from the
     // customer — surfaced (as a name) in the order detail. (Price list is not a
     // valid document-header field in this SAP version, so it's not selected.)
+    // U_SL_UsuarioApp is our own UDF (set on create, see BuildOrderBody) holding
+    // the SalesApp username that created the order — used to scope "my orders".
     private const string OrderSelect =
         "DocEntry,DocNum,CardCode,CardName,DocDate,DocDueDate,SalesPersonCode,Series,"
-        + "Comments,DocTotal,PaymentGroupCode,DocumentLines";
+        + "Comments,DocTotal,PaymentGroupCode,U_SL_UsuarioApp,DocumentLines";
 
     // SAP BoObjectTypes value for a Sales Order (used to filter Drafts).
     private const string SalesOrderObjectCode = "17";
@@ -65,7 +67,7 @@ public class OrdersController : ControllerBase
     {
         status = (status ?? OrderStatus.Approved).Trim().ToLowerInvariant();
 
-        var salesFilter = BuildSalesPersonFilter();
+        var ownerFilter = BuildAppUserFilter();
 
         string entity;
         var filters = new List<string>();
@@ -92,7 +94,7 @@ public class OrdersController : ControllerBase
                 return BadRequest(new { message = "status must be pending, approved or rejected." });
         }
 
-        if (salesFilter != null) filters.Add(salesFilter);
+        if (ownerFilter != null) filters.Add(ownerFilter);
 
         var query = $"{entity}?$select={OrderSelect}&$orderby=DocDate desc&$top=50";
         if (filters.Count > 0)
@@ -146,6 +148,21 @@ public class OrdersController : ControllerBase
         });
     }
 
+    // POST /api/orders/{id}/close — closes an already-approved SAP Order (all
+    // lines -> bost_Close). Not reversible from the app. Only valid for Orders
+    // (approved) — Drafts don't support this SAP action.
+    [HttpPost("{id:int}/close")]
+    public async Task<ActionResult<OrderDto>> Close(int id, CancellationToken ct)
+    {
+        await _sapClient.PostAsync($"Orders({id})/Close", new { }, ct);
+
+        var json = await _sapClient.GetAsync($"Orders({id})?$select={OrderSelect}", ct);
+        using var doc = JsonDocument.Parse(json);
+        var dto = MapOrder(doc.RootElement, OrderStatus.Approved);
+        await ResolveNamesAsync(dto, ct);
+        return Ok(dto);
+    }
+
     // POST /api/orders/{id}/duplicate  (RF-15)
     [HttpPost("{id:int}/duplicate")]
     public async Task<ActionResult<OrderDto>> Duplicate(int id, CancellationToken ct)
@@ -169,7 +186,9 @@ public class OrdersController : ControllerBase
                 ItemCode = l.ItemCode,
                 Quantity = l.Quantity,
                 SalesUnitOfMeasure = l.SalesUnitOfMeasure,
-                WarehouseCode = l.WarehouseCode
+                WarehouseCode = l.WarehouseCode,
+                ProjectCode = l.ProjectCode,
+                BranchCode = l.BranchCode
             }).ToList()
         };
 
@@ -206,6 +225,11 @@ public class OrdersController : ControllerBase
                 line["PriceAfterVAT"] = l.UnitPrice.Value;
             if (!string.IsNullOrWhiteSpace(l.WarehouseCode))
                 line["WarehouseCode"] = l.WarehouseCode;
+            if (!string.IsNullOrWhiteSpace(l.ProjectCode))
+                line["ProjectCode"] = l.ProjectCode;
+            // "Sucursal" — 2nd distribution-rule dimension on the line.
+            if (!string.IsNullOrWhiteSpace(l.BranchCode))
+                line["CostingCode2"] = l.BranchCode;
             lines.Add(line);
         }
 
@@ -219,15 +243,29 @@ public class OrdersController : ControllerBase
         if (request.DueDate.HasValue) body["DocDueDate"] = request.DueDate.Value.ToString("yyyy-MM-dd");
         if (!string.IsNullOrWhiteSpace(request.Comments)) body["Comments"] = request.Comments;
 
+        // Custom SAP field (UDF on Orders): the SalesApp username that created
+        // the order, from the JWT — not the SAP user. Set on every create,
+        // including "Duplicar pedido" (the current caller, not the source
+        // order's original creator).
+        var appUsername = User.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(appUsername))
+            body["U_SL_UsuarioApp"] = appUsername;
+
         return body;
     }
 
-    // Reps only see/own their orders; Administrators see everything.
-    private string? BuildSalesPersonFilter()
+    // Reps only see/own the orders THEY created in the app (by app username,
+    // U_SL_UsuarioApp — not by SalesPersonCode, which can be shared across
+    // app users); Administrators see everything.
+    private string? BuildAppUserFilter()
     {
         if (User.IsInRole("Administrator")) return null;
-        var code = CurrentSalesPersonCode();
-        return code.HasValue ? $"SalesPersonCode eq {code.Value}" : null;
+        var username = User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(username)) return null;
+        // Escape single quotes for the OData literal (SAP's own escaping rule:
+        // a literal quote is written as two quotes).
+        var escaped = username.Replace("'", "''");
+        return $"U_SL_UsuarioApp eq '{escaped}'";
     }
 
     private int? CurrentSalesPersonCode() =>
@@ -248,6 +286,7 @@ public class OrdersController : ControllerBase
             Comments = Str(e, "Comments"),
             DocTotal = Dec(e, "DocTotal") ?? 0m,
             PaymentTermsGroupCode = Int(e, "PaymentGroupCode"),
+            CreatedByAppUser = Str(e, "U_SL_UsuarioApp"),
             Status = status
         };
 
@@ -269,10 +308,16 @@ public class OrdersController : ControllerBase
                     // SAP's PriceAfterVAT — falling back to the net UnitPrice.
                     UnitPrice = Dec(l, "PriceAfterVAT") ?? Dec(l, "UnitPrice"),
                     LineTotal = Dec(l, "LineTotal") ?? 0m,
-                    WarehouseCode = Str(l, "WarehouseCode")
+                    WarehouseCode = Str(l, "WarehouseCode"),
+                    ProjectCode = Str(l, "ProjectCode"),
+                    BranchCode = Str(l, "CostingCode2"),
+                    IsClosed = Str(l, "LineStatus") == "bost_Close"
                 });
             }
         }
+
+        // The order is closed only once every line was closed via POST .../Close.
+        dto.IsClosed = dto.Lines.Count > 0 && dto.Lines.All(l => l.IsClosed);
 
         return dto;
     }

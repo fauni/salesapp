@@ -8,9 +8,8 @@ import '../../data/models/customer.dart';
 import '../../data/models/item.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import '../widgets/app_scaffold.dart';
+import '../widgets/elevated_search_bar.dart';
 import '../widgets/status_message.dart';
 import 'widgets/cart_pill.dart';
 import 'widgets/item_grid_tile.dart';
@@ -21,7 +20,17 @@ import 'widgets/line_config_sheet.dart';
 /// configure its line, floating cart pill to review the in-progress order.
 class ItemCatalogScreen extends StatefulWidget {
   final Customer customer;
-  const ItemCatalogScreen({super.key, required this.customer});
+
+  /// Route the floating cart pill pushes to review the order. Defaults to the
+  /// normal new-order summary; "Duplicar pedido" passes its own summary route
+  /// so the pill stays inside that flow instead.
+  final String summaryRoute;
+
+  const ItemCatalogScreen({
+    super.key,
+    required this.customer,
+    this.summaryRoute = '/new-order/summary',
+  });
 
   @override
   State<ItemCatalogScreen> createState() => _ItemCatalogScreenState();
@@ -102,8 +111,9 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         children: [
-          _CatalogSearchBar(
+          ElevatedSearchBar(
             controller: _searchController,
+            hintText: 'Buscar ítem por nombre o código',
             onChanged: (q) =>
                 context.read<ItemsBloc>().add(ItemsSearchChanged(q)),
           ),
@@ -236,79 +246,10 @@ class _ItemCatalogScreenState extends State<ItemCatalogScreen> {
           child: CartPill(
             count: cart.count,
             total: cart.total,
-            onTap: () => context.push('/new-order/summary'),
+            onTap: () => context.push(widget.summaryRoute),
           ),
         );
       },
-    );
-  }
-}
-
-/// Elevated catalog search bar: white card with a strong shadow and the search
-/// icon inside an accented blue square on the left. Shows a clear (×) button
-/// while there's text.
-class _CatalogSearchBar extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  const _CatalogSearchBar({required this.controller, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: AppShadows.floating,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: const Icon(Icons.search_rounded,
-                color: Colors.white, size: 22),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              textInputAction: TextInputAction.search,
-              style: GoogleFonts.inter(
-                  color: AppColors.text1, fontSize: 15),
-              decoration: InputDecoration(
-                isCollapsed: true,
-                border: InputBorder.none,
-                hintText: 'Buscar ítem por nombre o código',
-                hintStyle:
-                    GoogleFonts.inter(color: AppColors.text3, fontSize: 15),
-              ),
-            ),
-          ),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: controller,
-            builder: (context, value, _) {
-              if (value.text.isEmpty) return const SizedBox(width: 6);
-              return IconButton(
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.clear_rounded,
-                    color: AppColors.text3, size: 20),
-                onPressed: () {
-                  controller.clear();
-                  onChanged('');
-                },
-              );
-            },
-          ),
-        ],
-      ),
     );
   }
 }

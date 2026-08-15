@@ -3,17 +3,30 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../blocs/customers/customers_bloc.dart';
 import '../../../data/models/customer.dart';
-import '../../widgets/search_field.dart';
+import '../../widgets/elevated_search_bar.dart';
 import '../../widgets/status_message.dart';
 import 'customer_tile.dart';
 
 /// Reusable search + live-filtered list of customers. Used by both the Clientes
 /// section and the new-order client picker; the caller decides what happens on
 /// tap via [onSelect].
-class CustomerSearchView extends StatelessWidget {
+class CustomerSearchView extends StatefulWidget {
   final void Function(Customer customer) onSelect;
 
   const CustomerSearchView({super.key, required this.onSelect});
+
+  @override
+  State<CustomerSearchView> createState() => _CustomerSearchViewState();
+}
+
+class _CustomerSearchViewState extends State<CustomerSearchView> {
+  final _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +34,8 @@ class CustomerSearchView extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: SearchField(
+          child: ElevatedSearchBar(
+            controller: _searchController,
             hintText: 'Buscar cliente por nombre o código',
             onChanged: (q) =>
                 context.read<CustomersBloc>().add(CustomersSearchChanged(q)),
@@ -59,7 +73,7 @@ class CustomerSearchView extends StatelessWidget {
                       final customer = state.customers[i];
                       return CustomerTile(
                         customer: customer,
-                        onTap: () => onSelect(customer),
+                        onTap: () => widget.onSelect(customer),
                       );
                     },
                   );

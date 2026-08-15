@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.example.sales_app_mobile"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_secure_storage requiere compilar contra Android SDK 37 (backward-compatible).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
