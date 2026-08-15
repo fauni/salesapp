@@ -11,13 +11,17 @@ import 'blocs/items/items_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
 import 'blocs/submit_order/submit_order_bloc.dart';
+import 'blocs/users/user_form_bloc.dart';
+import 'blocs/users/users_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
+import 'data/models/app_user.dart';
 import 'data/models/customer.dart';
 import 'data/models/order.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
+import 'data/repositories/user_repository.dart';
 import 'ui/customers/client_picker_screen.dart';
 import 'ui/customers/customer_detail_screen.dart';
 import 'ui/customers/customers_screen.dart';
@@ -28,6 +32,8 @@ import 'ui/orders/order_detail_screen.dart';
 import 'ui/orders/order_summary_screen.dart';
 import 'ui/profile/profile_screen.dart';
 import 'ui/splash/splash_screen.dart';
+import 'ui/users/user_form_screen.dart';
+import 'ui/users/users_screen.dart';
 
 /// Auth-gated router. `redirect` reads the current AuthBloc state and keeps the
 /// user on the right screen; `refreshListenable` re-runs it on every state
@@ -214,6 +220,41 @@ GoRouter buildRouter(AuthBloc authBloc) {
       GoRoute(
         path: '/profile',
         pageBuilder: (_, _) => appPage(const ProfileScreen()),
+      ),
+      // Admin-only "Usuarios" (see app_drawer.dart — item hidden for non-
+      // Administrators; the backend also enforces this via [Authorize(Roles=
+      // "Administrator")] on UsersController, so a direct deep link 403s).
+      GoRoute(
+        path: '/users',
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                UsersBloc(context.read<UserRepository>())
+                  ..add(const UsersStarted()),
+            child: const UsersScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/users/new',
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) => UserFormBloc(context.read<UserRepository>()),
+            child: const UserFormScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/users/:id/edit',
+        pageBuilder: (context, state) {
+          final user = state.extra as AppUser?;
+          return appPage(
+            BlocProvider(
+              create: (context) => UserFormBloc(context.read<UserRepository>()),
+              child: UserFormScreen(existing: user),
+            ),
+          );
+        },
       ),
     ],
   );

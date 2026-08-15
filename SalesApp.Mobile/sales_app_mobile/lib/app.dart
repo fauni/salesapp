@@ -11,6 +11,7 @@ import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'data/repositories/project_repository.dart';
 import 'data/repositories/salesperson_repository.dart';
+import 'data/repositories/user_repository.dart';
 import 'router.dart';
 import 'ui/theme/app_theme.dart';
 
@@ -53,6 +54,9 @@ class _SalesAppState extends State<SalesApp> {
         ),
         RepositoryProvider<BranchRepository>(
           create: (_) => BranchRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<UserRepository>(
+          create: (_) => UserRepository(dio: widget.dio),
         ),
       ],
       child: BlocProvider.value(
