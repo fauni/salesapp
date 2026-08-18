@@ -18,6 +18,8 @@ class _FakeRepo extends OrderRepository {
     DateTime? dueDate,
     String? comments,
     required List<CartLine> lines,
+    double? latitude,
+    double? longitude,
   }) =>
       onCreate();
 }

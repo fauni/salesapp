@@ -13,15 +13,29 @@ class OrderSubmitted extends SubmitOrderEvent {
   final String? comments;
   final List<CartLine> lines;
 
+  // Best-effort GPS fix captured right before submit (see location_service.dart)
+  // — null when denied/unavailable, sent to SAP's U_SL_Ubicacion when present.
+  final double? latitude;
+  final double? longitude;
+
   const OrderSubmitted({
     required this.customerCode,
     this.salesPersonCode,
     this.dueDate,
     this.comments,
     required this.lines,
+    this.latitude,
+    this.longitude,
   });
 
   @override
-  List<Object?> get props =>
-      [customerCode, salesPersonCode, dueDate, comments, lines];
+  List<Object?> get props => [
+        customerCode,
+        salesPersonCode,
+        dueDate,
+        comments,
+        lines,
+        latitude,
+        longitude,
+      ];
 }

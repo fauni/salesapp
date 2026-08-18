@@ -31,6 +31,8 @@ class SubmitOrderBloc extends Bloc<SubmitOrderEvent, SubmitOrderState> {
         dueDate: event.dueDate,
         comments: event.comments,
         lines: event.lines,
+        latitude: event.latitude,
+        longitude: event.longitude,
       );
       emit(state.copyWith(status: SubmitStatus.success, created: order));
     } on ApiException catch (e) {

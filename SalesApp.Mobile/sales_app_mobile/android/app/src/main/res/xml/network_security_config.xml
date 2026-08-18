@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Allows plain HTTP (cleartext) only to the backend's on-prem host/IP.
+  Needed because release builds block cleartext by default from Android 9+;
+  debug builds don't hit this (Flutter injects a permissive config there),
+  which is why "works from the editor, fails in the release APK" happens.
+
+  Scoped to this one host on purpose - do not add a blanket
+  cleartextTrafficPermitted="true" for the whole app.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">177.222.46.162</domain>
+    </domain-config>
+</network-security-config>

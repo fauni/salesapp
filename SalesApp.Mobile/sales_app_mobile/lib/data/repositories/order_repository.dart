@@ -73,6 +73,8 @@ class OrderRepository {
     DateTime? dueDate,
     String? comments,
     required List<CartLine> lines,
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final body = <String, dynamic>{
@@ -81,6 +83,8 @@ class OrderRepository {
         'series': ?series,
         'dueDate': ?dueDate?.toIso8601String(),
         if (comments != null && comments.isNotEmpty) 'comments': comments,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
         'lines': [
           for (final l in lines)
             <String, dynamic>{

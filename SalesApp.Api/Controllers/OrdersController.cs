@@ -251,6 +251,18 @@ public class OrdersController : ControllerBase
         if (!string.IsNullOrWhiteSpace(appUsername))
             body["U_SL_UsuarioApp"] = appUsername;
 
+        // Custom SAP field (UDF on Orders): device GPS fix captured at submit
+        // time, as "lat,long". Best-effort on the app side — omitted entirely
+        // when unavailable (denied permission, GPS off, timeout), never blocks
+        // order creation. InvariantCulture is required: a server locale using
+        // a comma as decimal separator would otherwise corrupt the "lat,long"
+        // format (e.g. "-17,78" instead of "-17.78").
+        if (request.Latitude.HasValue && request.Longitude.HasValue)
+        {
+            body["U_SL_Ubicacion"] = string.Format(CultureInfo.InvariantCulture,
+                "{0},{1}", request.Latitude.Value, request.Longitude.Value);
+        }
+
         return body;
     }
 

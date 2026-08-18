@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../blocs/cart/cart_bloc.dart';
 import '../../blocs/submit_order/submit_order_bloc.dart';
 import '../../core/format.dart';
+import '../../core/location_service.dart';
 import '../../data/models/branch.dart';
 import '../../data/models/cart_line.dart';
 import '../../data/models/customer.dart';
@@ -174,19 +175,28 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     super.dispose();
   }
 
-  void _submit(CartState cart) {
+  Future<void> _submit(CartState cart) async {
     // Due date is required.
     if (_dueDate == null) {
       setState(() => _dueDateMissing = true);
       return;
     }
-    context.read<SubmitOrderBloc>().add(OrderSubmitted(
-          customerCode: cart.customer!.code,
-          salesPersonCode: _salesPerson?.code,
-          dueDate: _dueDate,
-          comments: _commentsController.text.trim(),
-          lines: cart.lines,
-        ));
+    final bloc = context.read<SubmitOrderBloc>();
+    // Best-effort GPS fix for SAP's U_SL_Ubicacion — never blocks order
+    // creation (see location_service.dart: null on denied/unavailable/timeout).
+    // Captured here (not earlier) so it reflects where the rep is right when
+    // confirming, and the GradientButton's own loading state already covers
+    // this wait — no separate spinner needed.
+    final location = await getCurrentLocationOrNull();
+    bloc.add(OrderSubmitted(
+      customerCode: cart.customer!.code,
+      salesPersonCode: _salesPerson?.code,
+      dueDate: _dueDate,
+      comments: _commentsController.text.trim(),
+      lines: cart.lines,
+      latitude: location?.$1,
+      longitude: location?.$2,
+    ));
   }
 
   Future<void> _pickSalesperson() async {

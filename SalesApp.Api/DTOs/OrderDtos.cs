@@ -9,6 +9,12 @@ public class CreateOrderRequest
     public int? Series { get; set; }                         // SAP numbering series (UserSalesSeries)
     public DateTime? DueDate { get; set; }                   // SAP DocDueDate
     public string? Comments { get; set; }
+
+    // Device GPS fix captured at submit time (best-effort — null if denied/
+    // unavailable). Sent to SAP as "lat,long" in the U_SL_Ubicacion UDF.
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     public List<CreateOrderLineRequest> Lines { get; set; } = new();
 }
 

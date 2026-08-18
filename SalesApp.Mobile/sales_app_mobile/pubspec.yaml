@@ -46,6 +46,7 @@ dependencies:
   intl: ^0.20.2
   stream_transform: ^2.1.1
   package_info_plus: ^10.2.1
+  geolocator: ^14.0.3
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +60,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   build_runner: ^2.15.1
   json_serializable: ^6.14.1
+  flutter_launcher_icons: 0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -103,3 +105,16 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# flutter_launcher_icons config — run `dart run flutter_launcher_icons` after
+# changing this (or the source image) to regenerate the native icon assets.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icons/tomatefacil.png
+  # Android adaptive icon: solid brand blue background (AppColors.primary) +
+  # the logo as foreground. Using the full logo as the background image would
+  # get the text clipped by the launcher's circular/rounded mask.
+  adaptive_icon_background: "#1E508D"
+  adaptive_icon_foreground: assets/icons/tomatefacil.png
+  remove_alpha_ios: true

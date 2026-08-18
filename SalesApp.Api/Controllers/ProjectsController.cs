@@ -21,9 +21,9 @@ public class ProjectsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ProjectDto>>> List(CancellationToken ct)
     {
-        var query = "Projects?$select=Code,Name,Active"
-                  + $"&$filter={Uri.EscapeDataString("Active eq 'tYES'")}"
-                  + "&$orderby=Name";
+            var query = "Projects?$select=Code,Name,Active"
+                      + $"&$filter={Uri.EscapeDataString("Active eq 'tYES' and U_BIG_VALIDO eq 'Y'")}"
+                      + "&$orderby=Name";
 
         var json = await _sapClient.GetAsync(query, ct);
 

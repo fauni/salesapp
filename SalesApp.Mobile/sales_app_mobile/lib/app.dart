@@ -62,7 +62,7 @@ class _SalesAppState extends State<SalesApp> {
       child: BlocProvider.value(
         value: widget.authBloc,
         child: MaterialApp.router(
-          title: 'SalesApp',
+          title: 'Ventas',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
           routerConfig: _router,

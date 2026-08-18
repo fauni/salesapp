@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>SalesApp</string>
+	<string>Ventas</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- GPS fix captured when confirming an order, sent to SAP's U_SL_Ubicacion.
+	     Best-effort — the app works without it if the user denies the prompt. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ventas usa tu ubicación para registrar dónde se tomó cada pedido.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
