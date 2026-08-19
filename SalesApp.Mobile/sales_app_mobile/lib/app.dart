@@ -9,6 +9,7 @@ import 'data/repositories/branch_repository.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
+import 'data/repositories/payment_terms_repository.dart';
 import 'data/repositories/project_repository.dart';
 import 'data/repositories/salesperson_repository.dart';
 import 'data/repositories/user_repository.dart';
@@ -51,6 +52,9 @@ class _SalesAppState extends State<SalesApp> {
         ),
         RepositoryProvider<ProjectRepository>(
           create: (_) => ProjectRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<PaymentTermsRepository>(
+          create: (_) => PaymentTermsRepository(dio: widget.dio),
         ),
         RepositoryProvider<BranchRepository>(
           create: (_) => BranchRepository(dio: widget.dio),

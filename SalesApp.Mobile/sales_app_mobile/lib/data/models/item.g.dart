@@ -13,6 +13,11 @@ Item _$ItemFromJson(Map<String, dynamic> json) => Item(
   price: (json['price'] as num?)?.toDouble(),
   currency: json['currency'] as String?,
   priceList: (json['priceList'] as num?)?.toInt(),
+  prices:
+      (json['prices'] as List<dynamic>?)
+          ?.map((e) => ItemPrice.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   warehouses:
       (json['warehouses'] as List<dynamic>?)
           ?.map((e) => ItemWarehouseStock.fromJson(e as Map<String, dynamic>))
@@ -27,7 +32,20 @@ Map<String, dynamic> _$ItemToJson(Item instance) => <String, dynamic>{
   'price': instance.price,
   'currency': instance.currency,
   'priceList': instance.priceList,
+  'prices': instance.prices,
   'warehouses': instance.warehouses,
+};
+
+ItemPrice _$ItemPriceFromJson(Map<String, dynamic> json) => ItemPrice(
+  priceList: (json['priceList'] as num).toInt(),
+  price: (json['price'] as num).toDouble(),
+  currency: json['currency'] as String?,
+);
+
+Map<String, dynamic> _$ItemPriceToJson(ItemPrice instance) => <String, dynamic>{
+  'priceList': instance.priceList,
+  'price': instance.price,
+  'currency': instance.currency,
 };
 
 ItemWarehouseStock _$ItemWarehouseStockFromJson(Map<String, dynamic> json) =>

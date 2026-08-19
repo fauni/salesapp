@@ -11,6 +11,11 @@ public class CustomerDto
     public string? Email { get; set; }                  // SAP EmailAddress
     public string? FederalTaxId { get; set; }           // SAP FederalTaxID
     public string? Currency { get; set; }               // SAP Currency
+
+    // Raw SAP code, no name resolution — used to look up item prices for this
+    // customer's assigned price list (see ItemDto.Prices). Available on the
+    // list endpoint too, unlike the resolved catalog names below.
+    public int? PriceListNum { get; set; }
 }
 
 // Single-customer detail. Adds the resolved catalog names (price list / payment
@@ -18,7 +23,6 @@ public class CustomerDto
 // they're only populated by the detail endpoint, never by the list.
 public class CustomerDetailDto : CustomerDto
 {
-    public int? PriceListNum { get; set; }              // SAP PriceListNum (raw code)
     public string? PriceListName { get; set; }          // resolved via ICatalogResolverService
     public int? PaymentTermsGroupCode { get; set; }     // SAP PayTermsGrpCode (raw code)
     public string? PaymentTermsGroupName { get; set; }  // resolved via ICatalogResolverService

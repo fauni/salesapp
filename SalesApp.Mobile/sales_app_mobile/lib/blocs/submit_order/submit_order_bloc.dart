@@ -30,6 +30,7 @@ class SubmitOrderBloc extends Bloc<SubmitOrderEvent, SubmitOrderState> {
         salesPersonCode: event.salesPersonCode,
         dueDate: event.dueDate,
         comments: event.comments,
+        paymentTermsGroupCode: event.paymentTermsGroupCode,
         lines: event.lines,
         latitude: event.latitude,
         longitude: event.longitude,

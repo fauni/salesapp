@@ -10,6 +10,10 @@ public class CreateOrderRequest
     public DateTime? DueDate { get; set; }                   // SAP DocDueDate
     public string? Comments { get; set; }
 
+    // Optional override of the customer's assigned payment terms group.
+    // Defaults to the customer's own (SAP resolves it) when null.
+    public int? PaymentTermsGroupCode { get; set; }          // -> SAP PaymentGroupCode
+
     // Device GPS fix captured at submit time (best-effort — null if denied/
     // unavailable). Sent to SAP as "lat,long" in the U_SL_Ubicacion UDF.
     public double? Latitude { get; set; }

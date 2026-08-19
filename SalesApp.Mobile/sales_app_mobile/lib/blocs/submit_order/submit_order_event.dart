@@ -11,6 +11,7 @@ class OrderSubmitted extends SubmitOrderEvent {
   final int? salesPersonCode;
   final DateTime? dueDate;
   final String? comments;
+  final int? paymentTermsGroupCode;
   final List<CartLine> lines;
 
   // Best-effort GPS fix captured right before submit (see location_service.dart)
@@ -23,6 +24,7 @@ class OrderSubmitted extends SubmitOrderEvent {
     this.salesPersonCode,
     this.dueDate,
     this.comments,
+    this.paymentTermsGroupCode,
     required this.lines,
     this.latitude,
     this.longitude,
@@ -34,6 +36,7 @@ class OrderSubmitted extends SubmitOrderEvent {
         salesPersonCode,
         dueDate,
         comments,
+        paymentTermsGroupCode,
         lines,
         latitude,
         longitude,

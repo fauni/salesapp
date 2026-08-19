@@ -14,7 +14,19 @@ public class ItemDto
     public string? Currency { get; set; }
     public int? PriceList { get; set; }                 // which SAP price list the Price came from
 
+    // Every price-list row SAP has for this item (ItemPrices), so callers who
+    // need a specific list can pick it out without a second request.
+    public List<ItemPriceDto> Prices { get; set; } = new();
+
     public List<ItemWarehouseStockDto> Warehouses { get; set; } = new();
+}
+
+// One price-list row for an item (SAP ItemPrices).
+public class ItemPriceDto
+{
+    public int PriceList { get; set; }                 // SAP PriceList (matches PriceListDto.Code)
+    public decimal Price { get; set; }                  // SAP Price
+    public string? Currency { get; set; }                // SAP Currency
 }
 
 // Stock of one item in one warehouse (SAP ItemWarehouseInfoCollection) — RF-19.

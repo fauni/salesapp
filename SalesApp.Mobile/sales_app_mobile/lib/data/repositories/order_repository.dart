@@ -72,6 +72,7 @@ class OrderRepository {
     int? series,
     DateTime? dueDate,
     String? comments,
+    int? paymentTermsGroupCode,
     required List<CartLine> lines,
     double? latitude,
     double? longitude,
@@ -83,6 +84,7 @@ class OrderRepository {
         'series': ?series,
         'dueDate': ?dueDate?.toIso8601String(),
         if (comments != null && comments.isNotEmpty) 'comments': comments,
+        'paymentTermsGroupCode': ?paymentTermsGroupCode,
         'latitude': ?latitude,
         'longitude': ?longitude,
         'lines': [

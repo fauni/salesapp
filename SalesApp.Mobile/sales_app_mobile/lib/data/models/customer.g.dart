@@ -14,6 +14,7 @@ Customer _$CustomerFromJson(Map<String, dynamic> json) => Customer(
   email: json['email'] as String?,
   federalTaxId: json['federalTaxId'] as String?,
   currency: json['currency'] as String?,
+  priceListNum: (json['priceListNum'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$CustomerToJson(Customer instance) => <String, dynamic>{
@@ -24,6 +25,7 @@ Map<String, dynamic> _$CustomerToJson(Customer instance) => <String, dynamic>{
   'email': instance.email,
   'federalTaxId': instance.federalTaxId,
   'currency': instance.currency,
+  'priceListNum': instance.priceListNum,
 };
 
 CustomerDetail _$CustomerDetailFromJson(Map<String, dynamic> json) =>

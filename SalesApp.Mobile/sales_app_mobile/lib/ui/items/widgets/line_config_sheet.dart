@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../blocs/cart/cart_bloc.dart';
 import '../../../core/format.dart';
 import '../../../data/models/cart_line.dart';
 import '../../../data/models/item.dart';
@@ -34,6 +35,7 @@ Future<LineSheetResult?> showLineConfigSheet(
   CartLine? existing,
 }) {
   final itemRepository = context.read<ItemRepository>();
+  final priceListNum = context.read<CartBloc>().state.customer?.priceListNum;
   return showModalBottomSheet<LineSheetResult>(
     context: context,
     isScrollControlled: true,
@@ -42,6 +44,7 @@ Future<LineSheetResult?> showLineConfigSheet(
       item: item,
       existing: existing,
       itemRepository: itemRepository,
+      priceListNum: priceListNum,
     ),
   );
 }
@@ -50,10 +53,16 @@ class _LineConfigSheet extends StatefulWidget {
   final Item item;
   final CartLine? existing;
   final ItemRepository itemRepository;
+
+  /// The cart customer's assigned SAP price list, used to prefill the price
+  /// field for a new line. Null if no customer/price list is set.
+  final int? priceListNum;
+
   const _LineConfigSheet({
     required this.item,
     required this.itemRepository,
     this.existing,
+    this.priceListNum,
   });
 
   @override
@@ -66,6 +75,10 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   late final TextEditingController _priceController;
   String? _priceError;
   String? _warehouseCode;
+
+  /// Price list the prefilled price came from (see initState). Null once the
+  /// user edits the price by hand, since the hint would no longer be accurate.
+  int? _priceListSource;
 
   // Sales UoM options, loaded on demand when the sheet opens.
   List<ItemUnitOfMeasure> _uoms = const [];
@@ -80,8 +93,13 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     _quantity = e?.quantity ?? 1;
     _quantityController =
         TextEditingController(text: formatQty(_quantity));
+    // Editing an existing line keeps its saved price untouched; a new line
+    // prefills from the customer's assigned price list when there's a match.
+    final matchedPrice = widget.item.priceFor(widget.priceListNum);
+    final resolvedPrice = e?.unitPrice ?? matchedPrice?.price;
     _priceController =
-        TextEditingController(text: e?.unitPrice?.toString() ?? '');
+        TextEditingController(text: resolvedPrice?.toString() ?? '');
+    _priceListSource = e == null ? matchedPrice?.priceList : null;
     _uomCode = e?.salesUnitOfMeasure; // may be null -> resolved after load
     _warehouseCode = e?.warehouseCode ??
         (widget.item.warehouses.isNotEmpty
@@ -252,7 +270,10 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                           FilteringTextInputFormatter.allow(
                               RegExp(r'[0-9.,]')),
                         ],
-                        onChanged: (_) => setState(() => _priceError = null),
+                        onChanged: (_) => setState(() {
+                          _priceError = null;
+                          _priceListSource = null;
+                        }),
                         decoration: InputDecoration(
                           prefixText: 'Bs. ',
                           prefixStyle: GoogleFonts.inter(
@@ -263,6 +284,14 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                           errorText: _priceError,
                         ),
                       ),
+                      if (_priceListSource != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Precio según lista de precios N° $_priceListSource',
+                          style: GoogleFonts.inter(
+                              color: AppColors.text2, fontSize: 12),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       _label('Unidad de venta'),
                       const SizedBox(height: 6),

@@ -22,8 +22,9 @@ public class OrdersController : ControllerBase
     private readonly ICatalogResolverService _catalogResolver;
 
     // Same field set for Orders and Drafts (Drafts mirror the document schema).
-    // PaymentGroupCode is the payment-terms field the order inherited from the
-    // customer — surfaced (as a name) in the order detail. (Price list is not a
+    // PaymentGroupCode is the payment-terms group — defaults from the customer
+    // but can be overridden on create (CreateOrderRequest.PaymentTermsGroupCode);
+    // surfaced (as a name) in the order detail either way. (Price list is not a
     // valid document-header field in this SAP version, so it's not selected.)
     // U_SL_UsuarioApp is our own UDF (set on create, see BuildOrderBody) holding
     // the SalesApp username that created the order — used to scope "my orders".
@@ -242,6 +243,9 @@ public class OrdersController : ControllerBase
         if (request.Series.HasValue) body["Series"] = request.Series.Value;
         if (request.DueDate.HasValue) body["DocDueDate"] = request.DueDate.Value.ToString("yyyy-MM-dd");
         if (!string.IsNullOrWhiteSpace(request.Comments)) body["Comments"] = request.Comments;
+        // Omitted => SAP inherits the customer's own payment terms group.
+        if (request.PaymentTermsGroupCode.HasValue)
+            body["PaymentGroupCode"] = request.PaymentTermsGroupCode.Value;
 
         // Custom SAP field (UDF on Orders): the SalesApp username that created
         // the order, from the JWT — not the SAP user. Set on every create,

@@ -10,17 +10,19 @@ import '../../core/format.dart';
 import '../../core/location_service.dart';
 import '../../data/models/branch.dart';
 import '../../data/models/cart_line.dart';
-import '../../data/models/customer.dart';
 import '../../data/models/order.dart';
+import '../../data/models/payment_terms.dart';
 import '../../data/models/project.dart';
 import '../../data/models/sales_person.dart';
 import '../../data/network/api_error.dart';
 import '../../data/repositories/branch_repository.dart';
 import '../../data/repositories/customer_repository.dart';
+import '../../data/repositories/payment_terms_repository.dart';
 import '../../data/repositories/project_repository.dart';
 import '../../data/repositories/salesperson_repository.dart';
 import '../theme/app_colors.dart';
 import 'widgets/branch_picker.dart';
+import 'widgets/payment_terms_picker.dart';
 import 'widgets/project_picker.dart';
 import 'widgets/salesperson_picker.dart';
 import '../widgets/app_scaffold.dart';
@@ -45,11 +47,11 @@ class OrderSummaryScreen extends StatefulWidget {
 class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   DateTime? _dueDate;
   bool _dueDateMissing = false;
+  bool _paymentTermsMissing = false;
   final _commentsController = TextEditingController();
 
-  // Full customer detail (payment terms etc.), loaded on demand — the cart only
-  // holds the basic Customer.
-  CustomerDetail? _customerDetail;
+  // Loading state for the customer detail fetch (salesperson/payment-terms
+  // defaults below) — the cart only holds the basic Customer.
   bool _loadingDetail = false;
 
   // Salesperson for the order. Defaults to the one assigned to the customer
@@ -67,10 +69,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   String? _sourceProjectCode;
   String? _sourceBranchCode;
 
-  // Payment terms name the source order was actually created with — takes
-  // priority over the customer's current payment terms (which may have
-  // changed since). Display-only, like the rest of this preload.
-  String? _sourcePaymentTermsGroupName;
+  // Payment terms for the order header. Defaults to the source order's own
+  // (when duplicating) or the customer's assigned group (from the detail),
+  // but the rep can override it — same pattern as _salesPerson.
+  PaymentTerms? _paymentTerms;
 
   @override
   void initState() {
@@ -96,7 +98,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     if (source.paymentTermsGroupCode != null &&
         source.paymentTermsGroupName != null) {
-      _sourcePaymentTermsGroupName = source.paymentTermsGroupName;
+      _paymentTerms = PaymentTerms(
+        code: source.paymentTermsGroupCode!,
+        name: source.paymentTermsGroupName!,
+      );
     }
 
     // Project/branch live per-line in SAP; every line was tagged the same way
@@ -147,7 +152,6 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           await context.read<CustomerRepository>().getByCode(code);
       if (!mounted) return;
       setState(() {
-        _customerDetail = detail;
         _loadingDetail = false;
         // Preselect the customer's assigned salesperson (unless the rep already
         // picked one, or the source order already set one). Needs both a code
@@ -159,6 +163,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           _salesPerson = SalesPerson(
             code: detail.salesPersonCode!,
             name: detail.salesPersonName!,
+          );
+        }
+        // Same default-unless-already-set pattern for payment terms.
+        if (_paymentTerms == null &&
+            detail.paymentTermsGroupCode != null &&
+            detail.paymentTermsGroupName != null) {
+          _paymentTerms = PaymentTerms(
+            code: detail.paymentTermsGroupCode!,
+            name: detail.paymentTermsGroupName!,
           );
         }
       });
@@ -176,9 +189,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Future<void> _submit(CartState cart) async {
-    // Due date is required.
-    if (_dueDate == null) {
-      setState(() => _dueDateMissing = true);
+    // Due date and payment terms are required.
+    if (_dueDate == null || _paymentTerms == null) {
+      setState(() {
+        _dueDateMissing = _dueDate == null;
+        _paymentTermsMissing = _paymentTerms == null;
+      });
       return;
     }
     final bloc = context.read<SubmitOrderBloc>();
@@ -193,6 +209,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       salesPersonCode: _salesPerson?.code,
       dueDate: _dueDate,
       comments: _commentsController.text.trim(),
+      paymentTermsGroupCode: _paymentTerms?.code,
       lines: cart.lines,
       latitude: location?.$1,
       longitude: location?.$2,
@@ -206,6 +223,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       selectedCode: _salesPerson?.code,
     );
     if (picked != null) setState(() => _salesPerson = picked);
+  }
+
+  Future<void> _pickPaymentTerms() async {
+    final picked = await showPaymentTermsPicker(
+      context,
+      repository: context.read<PaymentTermsRepository>(),
+      selectedCode: _paymentTerms?.code,
+    );
+    if (picked != null) {
+      setState(() {
+        _paymentTerms = picked;
+        _paymentTermsMissing = false;
+      });
+    }
   }
 
   Future<void> _pickProject() async {
@@ -332,7 +363,6 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     ),
                   ],
                 ),
-                _customerCommercialInfo(),
               ],
             ),
           ),
@@ -366,6 +396,39 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         : 'Seleccionar empleado',
                     style: TextStyle(
                         color: _salesPerson != null
+                            ? AppColors.text1
+                            : AppColors.text3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: _pickPaymentTerms,
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Condición de pago',
+                    prefixIcon: const Icon(Icons.payments_outlined),
+                    errorText: _paymentTermsMissing
+                        ? 'Seleccioná una condición de pago'
+                        : null,
+                    suffixIcon: _loadingDetail
+                        ? const Padding(
+                            padding: EdgeInsets.all(14),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : const Icon(Icons.chevron_right_rounded),
+                  ),
+                  child: Text(
+                    _paymentTerms != null
+                        ? _paymentTerms!.name
+                        : 'Seleccionar condición de pago',
+                    style: TextStyle(
+                        color: _paymentTerms != null
                             ? AppColors.text1
                             : AppColors.text3),
                   ),
@@ -472,68 +535,6 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  /// Commercial detail resolved from the customer detail (payment terms).
-  /// Shows a spinner while loading and a muted placeholder when SAP has no
-  /// value. Price list is intentionally not shown here for now.
-  Widget _customerCommercialInfo() {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Divider(height: 1, color: AppColors.lineSoft),
-          const SizedBox(height: 12),
-          _infoRow(
-            icon: Icons.payments_outlined,
-            label: 'Condición de pago',
-            // Priority to the source order's own terms when duplicating (they
-            // may differ from what the customer has assigned today).
-            value: _sourcePaymentTermsGroupName ??
-                _customerDetail?.paymentTermsGroupName,
-            emptyText: 'No especificada',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow({
-    required IconData icon,
-    required String label,
-    required String? value,
-    required String emptyText,
-  }) {
-    Widget trailing;
-    if (_loadingDetail) {
-      trailing = const SizedBox(
-        width: 14,
-        height: 14,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
-    } else {
-      final empty = value == null || value.isEmpty;
-      trailing = Text(
-        empty ? emptyText : value,
-        style: GoogleFonts.plusJakartaSans(
-          color: empty ? AppColors.text3 : AppColors.text1,
-          fontWeight: FontWeight.w700,
-          fontSize: 13,
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.text2),
-        const SizedBox(width: 8),
-        Text(label,
-            style: GoogleFonts.inter(color: AppColors.text2, fontSize: 13)),
-        const Spacer(),
-        Flexible(child: Align(alignment: Alignment.centerRight, child: trailing)),
       ],
     );
   }

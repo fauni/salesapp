@@ -17,6 +17,7 @@ class _FakeRepo extends OrderRepository {
     int? series,
     DateTime? dueDate,
     String? comments,
+    int? paymentTermsGroupCode,
     required List<CartLine> lines,
     double? latitude,
     double? longitude,

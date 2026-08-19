@@ -188,19 +188,32 @@ public class ItemsController : ControllerBase
             GroupCode = Int(e, "ItemsGroupCode")
         };
 
-        // Price: pick the ItemPrices row matching the requested price list.
-        if (priceList.HasValue
-            && e.TryGetProperty("ItemPrices", out var prices)
+        // Every price-list row SAP has for this item, plus (if requested) the
+        // single one resolved for the caller's price list — same pattern as
+        // the Warehouses flattening below.
+        if (e.TryGetProperty("ItemPrices", out var prices)
             && prices.ValueKind == JsonValueKind.Array)
         {
             foreach (var p in prices.EnumerateArray())
             {
-                if (Int(p, "PriceList") == priceList.Value)
+                var listCode = Int(p, "PriceList");
+                if (listCode is null) continue;
+
+                var price = Dec(p, "Price") ?? 0m;
+                var currency = Str(p, "Currency");
+
+                dto.Prices.Add(new ItemPriceDto
                 {
-                    dto.Price = Dec(p, "Price");
-                    dto.Currency = Str(p, "Currency");
+                    PriceList = listCode.Value,
+                    Price = price,
+                    Currency = currency
+                });
+
+                if (priceList.HasValue && listCode.Value == priceList.Value)
+                {
+                    dto.Price = price;
+                    dto.Currency = currency;
                     dto.PriceList = priceList.Value;
-                    break;
                 }
             }
         }

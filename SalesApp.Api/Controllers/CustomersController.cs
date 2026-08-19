@@ -20,12 +20,15 @@ public class CustomersController : ControllerBase
 
     // Fields we actually surface — keep the $select tight so SAP returns less
     // and we never accidentally leak a field we didn't mean to.
+    // PriceListNum is included even in the list select — it's a raw code (no
+    // catalog resolution), used later to price items against this customer's
+    // assigned price list.
     private const string CustomerSelect =
-        "CardCode,CardName,Phone1,Cellular,EmailAddress,FederalTaxID,Currency";
+        "CardCode,CardName,Phone1,Cellular,EmailAddress,FederalTaxID,Currency,PriceListNum";
 
     // Detail additionally needs the catalog codes we resolve to names.
     private const string CustomerDetailSelect =
-        CustomerSelect + ",PriceListNum,PayTermsGrpCode,SalesPersonCode";
+        CustomerSelect + ",PayTermsGrpCode,SalesPersonCode";
 
     public CustomersController(
         ISapServiceLayerClient sapClient, ICatalogResolverService catalogResolver)
@@ -148,7 +151,8 @@ public class CustomersController : ControllerBase
         Cellular = Str(e, "Cellular"),
         Email = Str(e, "EmailAddress"),
         FederalTaxId = Str(e, "FederalTaxID"),
-        Currency = Str(e, "Currency")
+        Currency = Str(e, "Currency"),
+        PriceListNum = IntOrNull(e, "PriceListNum")
     };
 
     private static CustomerContactDto MapContact(JsonElement e) => new()

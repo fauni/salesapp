@@ -13,6 +13,10 @@ class Customer {
   final String? federalTaxId;
   final String? currency;
 
+  // Raw SAP code, no name resolution — used to resolve item.priceFor() when
+  // configuring a cart line (see line_config_sheet.dart).
+  final int? priceListNum;
+
   const Customer({
     required this.code,
     required this.name,
@@ -21,6 +25,7 @@ class Customer {
     this.email,
     this.federalTaxId,
     this.currency,
+    this.priceListNum,
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) =>
@@ -80,6 +85,7 @@ class CustomerDetail {
         email: email,
         federalTaxId: federalTaxId,
         currency: currency,
+        priceListNum: priceListNum,
       );
 }
 
