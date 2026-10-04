@@ -25,17 +25,33 @@ class OrderRepository {
     }
   }
 
-  /// GET /api/orders/{id}?status=
+  /// GET /api/orders/{id}?status=&draft=
   ///
   /// `status` (pending|approved|rejected) tells the backend whether to read the
   /// SAP Order or the Draft — pending/rejected orders are Drafts and 404 in
-  /// Orders otherwise.
-  Future<Order> getById(int id, {String? status}) async {
+  /// Orders otherwise. `isDraft` is needed for approved drafts (not generated).
+  Future<Order> getById(int id, {String? status, bool isDraft = false}) async {
     try {
       final resp = await _dio.get(
         '/api/orders/$id',
-        queryParameters: status == null ? null : {'status': status},
+        queryParameters: {
+          'status': ?status,
+          if (isDraft) 'draft': true,
+        },
       );
+      return Order.fromJson(Map<String, dynamic>.from(resp.data as Map));
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
+  /// POST /api/orders/{id}/generate — turns a draft SAP already AUTHORIZED
+  /// into the real sales order (SAP's "Add" on an approved draft; not an
+  /// approval). Returns the new order (id 0 if SAP created it but the backend
+  /// couldn't look it up).
+  Future<Order> generate(int draftId) async {
+    try {
+      final resp = await _dio.post('/api/orders/$draftId/generate');
       return Order.fromJson(Map<String, dynamic>.from(resp.data as Map));
     } on DioException catch (e) {
       throw mapDioError(e);

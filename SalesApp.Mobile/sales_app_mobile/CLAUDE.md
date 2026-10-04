@@ -107,10 +107,21 @@ request. Un `401` real → limpiar token y mandar a login.
 - `GET /api/orders/{id}` → 200 `OrderDto` · 404 si no existe.
 - `GET /api/orders/{id}/pdf` → **501 (no implementado aún — NO construir esa pantalla).**
 - `POST /api/orders/{id}/duplicate` → 201 `OrderDto` (nuevo pedido a partir de uno existente).
+- `POST /api/orders/{id}/generate` — `{id}` = DocEntry de un **borrador ya autorizado
+  en SAP** → 201 `OrderDto` (la orden real). Equivale a "Añadir" sobre el borrador
+  autorizado en SAP; **no es aprobar** (400 si SAP no lo autorizó). Botón
+  "Generar orden de venta" en la pestaña Autorizados.
+
+Con procedimiento de autorización, `POST /api/orders` crea un **borrador** y el
+backend responde 201 con `status: "pending"`, `isDraft: true` (SAP devuelve -2028,
+que el backend traduce a éxito). Pestañas según `ApprovalRequests.Status` de SAP:
+Pendientes = arsPending, Rechazados = arsNotApproved, Autorizados = borradores
+arsApproved (`isDraft: true`, por generar) + órdenes reales. El detalle de un
+borrador se pide con `?status=…&draft=true` (`Order.detailPath`).
 
 `OrderDto`:
 `{ id, docNum, customerCode, customerName, docDate, dueDate, salesPersonCode,
-   series, comments, status, docTotal,
+   series, comments, status, isDraft, docTotal,
    lines: [ { lineNum, itemCode, description, quantity, salesUnitOfMeasure,
               unitPrice, lineTotal, warehouseCode } ] }`
 
@@ -139,8 +150,9 @@ request. Un `401` real → limpiar token y mandar a login.
    pedido. Retomar cuando se decida usar listas de precios.
 6. **Series de numeración**: son de SAP; el usuario elige entre las permitidas
    (`/salespersons/{code}/series`).
-7. `pending` vs `rejected` en el backend aún no discrimina fino (mismo origen de drafts);
-   no apoyar lógica crítica en esa distinción todavía.
+7. `pending` / `rejected` / aprobado-por-generar salen del estado de la solicitud de
+   autorización de SAP (`ApprovalRequests`). Generar la orden de un borrador
+   autorizado es la única acción permitida sobre la autorización (no aprobar/rechazar).
 
 ## Primer milestone (empezar por acá)
 

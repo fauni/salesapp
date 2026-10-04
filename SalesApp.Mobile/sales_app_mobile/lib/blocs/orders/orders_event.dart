@@ -23,3 +23,11 @@ class OrdersFilterChanged extends OrdersEvent {
 class OrdersRefreshed extends OrdersEvent {
   const OrdersRefreshed();
 }
+
+/// Rep confirmed "Generar orden de venta" on an approved draft.
+class OrdersGenerateRequested extends OrdersEvent {
+  final int draftId;
+  const OrdersGenerateRequested(this.draftId);
+  @override
+  List<Object?> get props => [draftId];
+}

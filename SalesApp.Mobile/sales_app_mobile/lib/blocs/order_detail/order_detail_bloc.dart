@@ -16,7 +16,11 @@ class OrderDetailBloc extends Bloc<OrderDetailEvent, OrderDetailState> {
   /// whether to read the SAP Order or the Draft. Null falls back to Order.
   final String? orderStatus;
 
-  OrderDetailBloc(this._repository, this.orderId, {this.orderStatus})
+  /// Approved drafts (authorized, not generated) also live in Drafts.
+  final bool isDraft;
+
+  OrderDetailBloc(this._repository, this.orderId,
+      {this.orderStatus, this.isDraft = false})
       : super(const OrderDetailState()) {
     on<OrderDetailStarted>((event, emit) => _load(emit));
     on<OrderDetailRefreshed>((event, emit) => _load(emit));
@@ -26,7 +30,8 @@ class OrderDetailBloc extends Bloc<OrderDetailEvent, OrderDetailState> {
   Future<void> _load(Emitter<OrderDetailState> emit) async {
     emit(state.copyWith(status: OrderDetailStatus.loading));
     try {
-      final order = await _repository.getById(orderId, status: orderStatus);
+      final order = await _repository.getById(orderId,
+          status: orderStatus, isDraft: isDraft);
       emit(state.copyWith(status: OrderDetailStatus.success, order: order));
     } on ApiException catch (e) {
       emit(state.copyWith(status: OrderDetailStatus.failure, error: e.message));

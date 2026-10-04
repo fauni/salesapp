@@ -27,6 +27,7 @@ Order _$OrderFromJson(Map<String, dynamic> json) => Order(
   paymentTermsGroupName: json['paymentTermsGroupName'] as String?,
   status: json['status'] as String,
   isClosed: json['isClosed'] as bool? ?? false,
+  isDraft: json['isDraft'] as bool? ?? false,
   docTotal: (json['docTotal'] as num).toDouble(),
   lines:
       (json['lines'] as List<dynamic>?)
@@ -52,6 +53,7 @@ Map<String, dynamic> _$OrderToJson(Order instance) => <String, dynamic>{
   'paymentTermsGroupName': instance.paymentTermsGroupName,
   'status': instance.status,
   'isClosed': instance.isClosed,
+  'isDraft': instance.isDraft,
   'docTotal': instance.docTotal,
   'lines': instance.lines,
 };

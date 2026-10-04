@@ -11,7 +11,8 @@ class _FakeRepo extends OrderRepository {
   _FakeRepo({required this.onGet, this.onClose}) : super(dio: Dio());
 
   @override
-  Future<Order> getById(int id, {String? status}) => onGet(id);
+  Future<Order> getById(int id, {String? status, bool isDraft = false}) =>
+      onGet(id);
 
   @override
   Future<Order> close(int id) => onClose!(id);

@@ -15,7 +15,17 @@ class OrderCard extends StatelessWidget {
   final Order order;
   final VoidCallback? onTap;
 
-  const OrderCard({super.key, required this.order, this.onTap});
+  /// "Generar orden de venta" — only rendered for [Order.canGenerate] drafts.
+  final VoidCallback? onGenerate;
+  final bool generating;
+
+  const OrderCard({
+    super.key,
+    required this.order,
+    this.onTap,
+    this.onGenerate,
+    this.generating = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +52,10 @@ class OrderCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '#${order.docNum}',
+                          // Draft numbers aren't the final SAP order number.
+                          order.isDraft
+                              ? 'Borrador #${order.docNum}'
+                              : '#${order.docNum}',
                           style: GoogleFonts.plusJakartaSans(
                             color: AppColors.text1,
                             fontWeight: FontWeight.w700,
@@ -78,6 +91,41 @@ class OrderCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (order.canGenerate && onGenerate != null) ...[
+              const Divider(height: 1, color: AppColors.lineSoft),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Autorizado en SAP · falta generar la orden de venta',
+                      style: GoogleFonts.inter(
+                          color: AppColors.text2, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: generating ? null : onGenerate,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.sapBlue,
+                        side: const BorderSide(color: AppColors.sapBlue),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: generating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.task_alt_rounded, size: 18),
+                      label: Text(generating
+                          ? 'Generando…'
+                          : 'Generar orden de venta'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

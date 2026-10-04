@@ -43,4 +43,19 @@ public class SapTestController : ControllerBase
             passwordLength = config.PasswordLength
         });
     }
+
+    // GET /api/sap-test/raw?path=Drafts(5)
+    // TEMPORARY diagnostic: read-only passthrough of a Service Layer GET, to
+    // inspect raw SAP fields (approval requests, draft status...). Development
+    // only, Administrator only (class-level). Remove before production.
+    [HttpGet("raw")]
+    public async Task<IActionResult> Raw(
+        [FromQuery] string path, [FromServices] IWebHostEnvironment env, CancellationToken ct)
+    {
+        if (!env.IsDevelopment()) return NotFound();
+        if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { message = "path is required." });
+        // Resource paths must not start with '/' (see CLAUDE.md URI gotcha).
+        var json = await _sapClient.GetAsync(path.TrimStart('/'), ct);
+        return Content(json, "application/json");
+    }
 }

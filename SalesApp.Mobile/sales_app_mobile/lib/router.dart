@@ -141,13 +141,15 @@ GoRouter buildRouter(AuthBloc authBloc) {
         pageBuilder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
           // Approved orders are SAP Orders; pending/rejected are Drafts. The
-          // list passes the status so the detail reads the right entity.
+          // list passes the status so the detail reads the right entity
+          // (plus draft=true for approved drafts not yet generated).
           final status = state.uri.queryParameters['status'];
+          final isDraft = state.uri.queryParameters['draft'] == 'true';
           return appPage(
             BlocProvider(
               create: (context) =>
                   OrderDetailBloc(context.read<OrderRepository>(), id,
-                      orderStatus: status)
+                      orderStatus: status, isDraft: isDraft)
                     ..add(const OrderDetailStarted()),
               child: const OrderDetailScreen(),
             ),

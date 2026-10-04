@@ -318,7 +318,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           router.go('/');
           if (order.id > 0) {
             // The detail must know the status to read Drafts vs Orders.
-            router.push('/orders/${order.id}?status=${order.status}');
+            router.push(order.detailPath);
           }
         } else if (state.status == SubmitStatus.failure) {
           ScaffoldMessenger.of(context)

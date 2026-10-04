@@ -27,6 +27,12 @@ class Order {
   @JsonKey(defaultValue: false)
   final bool isClosed;
 
+  /// SAP Draft rather than a real Order. Pending/rejected are always drafts;
+  /// an approved draft was authorized in SAP but not yet turned into the
+  /// sales order — see [canGenerate].
+  @JsonKey(defaultValue: false)
+  final bool isDraft;
+
   final double docTotal;
   final List<OrderLine> lines;
 
@@ -47,11 +53,20 @@ class Order {
     this.paymentTermsGroupName,
     required this.status,
     this.isClosed = false,
+    this.isDraft = false,
     required this.docTotal,
     this.lines = const [],
   });
 
   int get itemCount => lines.length;
+
+  /// Authorized in SAP, still a draft: the rep can generate the real order.
+  bool get canGenerate => isDraft && status == 'approved';
+
+  /// Route to this order's detail. The query tells the backend whether to
+  /// read SAP Drafts or Orders.
+  String get detailPath =>
+      '/orders/$id?status=$status${isDraft ? '&draft=true' : ''}';
 
   factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
   Map<String, dynamic> toJson() => _$OrderToJson(this);

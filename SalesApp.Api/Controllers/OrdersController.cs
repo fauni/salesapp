@@ -65,66 +65,110 @@ public class OrdersController : ControllerBase
     {
         status = (status ?? OrderStatus.Approved).Trim().ToLowerInvariant();
 
-        var ownerFilter = BuildAppUserFilter();
-
-        string entity;
-        var filters = new List<string>();
-
+        // The tab is decided by the SAP approval request of each draft
+        // (ApprovalRequests.Status), not by the draft itself:
+        //   pending  -> drafts awaiting authorization      (arsPending)
+        //   rejected -> drafts rejected by the authorizer  (arsNotApproved)
+        //   approved -> drafts authorized but not yet turned into an Order
+        //               (arsApproved, IsDraft = true — "Generar orden" in the app)
+        //               followed by the real SAP Orders.
+        // Drafts already converted (arsGenerated) appear only as their Order.
         switch (status)
         {
-            case OrderStatus.Approved:
-                // Approved (or no approval needed) => real Orders.
-                entity = "Orders";
-                break;
-
             case OrderStatus.Pending:
+                return Ok(await ListDraftsByApprovalAsync(ApprovalPending, status, ct));
+
             case OrderStatus.Rejected:
-                // Pending/rejected sit in Drafts of type Sales Order.
-                // TODO(client-config): distinguishing pending vs rejected requires
-                // the draft's ApprovalRequests.Status — not wired yet. Until then
-                // both statuses return the same sales-order drafts set. Confirm the
-                // client's Approval Procedure config before relying on this split.
-                entity = "Drafts";
-                filters.Add($"DocObjectCode eq '{SalesOrderObjectCode}'");
-                break;
+                return Ok(await ListDraftsByApprovalAsync(ApprovalRejected, status, ct));
+
+            case OrderStatus.Approved:
+                var toGenerate = await ListDraftsByApprovalAsync(ApprovalApproved, status, ct);
+                var orders = await ListOrdersAsync(ct);
+                return Ok(toGenerate.Concat(orders));
 
             default:
                 return BadRequest(new { message = "status must be pending, approved or rejected." });
         }
-
-        if (ownerFilter != null) filters.Add(ownerFilter);
-
-        var query = $"{entity}?$select={OrderSelect}&$orderby=DocDate desc&$top=50";
-        if (filters.Count > 0)
-            query += $"&$filter={Uri.EscapeDataString(string.Join(" and ", filters))}";
-
-        var json = await _sapClient.GetAsync(query, ct);
-        using var doc = JsonDocument.Parse(json);
-        var orders = doc.RootElement.GetProperty("value")
-            .EnumerateArray()
-            .Select(e => MapOrder(e, status))
-            .ToList();
-        return Ok(orders);
     }
 
-    // GET /api/orders/{id}?status=pending|approved|rejected
+    // GET /api/orders/{id}?status=pending|approved|rejected[&draft=true|false]
     // Approved orders live in SAP's `Orders`; pending/rejected are `Drafts`.
     // The caller (order list) already knows the status, so it tells us which
-    // entity to read — otherwise a draft id would 404 against Orders.
+    // entity to read — otherwise a draft id would 404 against Orders. An
+    // approved-but-not-generated draft is status=approved&draft=true.
     [HttpGet("{id:int}")]
     public async Task<ActionResult<OrderDto>> GetById(
-        int id, [FromQuery] string? status, CancellationToken ct)
+        int id, [FromQuery] string? status, [FromQuery] bool? draft, CancellationToken ct)
     {
         var normalized = (status ?? OrderStatus.Approved).Trim().ToLowerInvariant();
-        var isDraft = normalized is OrderStatus.Pending or OrderStatus.Rejected;
+        var isDraft = draft ?? normalized is OrderStatus.Pending or OrderStatus.Rejected;
         var entity = isDraft ? "Drafts" : "Orders";
-        var displayStatus = isDraft ? normalized : OrderStatus.Approved;
+        var displayStatus = normalized is OrderStatus.Pending or OrderStatus.Rejected
+            ? normalized
+            : OrderStatus.Approved;
 
         var json = await _sapClient.GetAsync($"{entity}({id})?$select={OrderSelect}", ct);
         using var doc = JsonDocument.Parse(json);
-        var dto = MapOrder(doc.RootElement, displayStatus);
+        var dto = MapOrder(doc.RootElement, displayStatus, isDraft);
+        if (!IsOwnedByCaller(dto)) return OrderNotFound();
         await ResolveNamesAsync(dto, ct);
         return Ok(dto);
+    }
+
+    // POST /api/orders/{id}/generate — {id} = DocEntry of a DRAFT.
+    // Turns a draft that SAP ALREADY AUTHORIZED into the real Sales Order: the
+    // same as pressing "Add" on the approved draft in SAP. This is NOT an
+    // approval (SAP still owns that): drafts whose approval request isn't
+    // arsApproved are refused.
+    [HttpPost("{id:int}/generate")]
+    public async Task<ActionResult<OrderDto>> Generate(int id, CancellationToken ct)
+    {
+        OrderDto draft;
+        string docObjectCode;
+        var draftJson = await _sapClient.GetAsync(
+            $"Drafts({id})?$select={OrderSelect},DocObjectCode", ct);
+        using (var draftDoc = JsonDocument.Parse(draftJson))
+        {
+            draft = MapOrder(draftDoc.RootElement, OrderStatus.Approved, isDraft: true);
+            // SaveDraftToDocument needs the draft's document type too, or SAP
+            // fails with -5001 "Object type for draft is missing". Echo back
+            // exactly what SAP returned (e.g. "oOrders").
+            docObjectCode = Str(draftDoc.RootElement, "DocObjectCode") ?? "oOrders";
+        }
+
+        // Same ownership rule as the lists: users act only on their own orders.
+        if (!IsOwnedByCaller(draft)) return OrderNotFound();
+
+        var approved = await DraftEntriesByApprovalAsync(ApprovalApproved, ct);
+        if (!approved.Contains(id))
+            return BadRequest(new { message = "This order is not authorized in SAP, or it was already generated." });
+
+        // Returns 204 (no body) — the new Order is looked up below. Service
+        // Layer services are root-level actions ("DraftsService_..."), NOT
+        // nested under the entity set: "Drafts/DraftsService_..." is accepted
+        // but fails with -5001 "Object type for draft is missing".
+        await _sapClient.PostAsync("DraftsService_SaveDraftToDocument",
+            new { Document = new { DocEntry = id, DocObjectCode = docObjectCode } }, ct);
+
+        // Exact lookup via the approval request (ObjectEntry = new Order);
+        // newest-order-for-customer only as a fallback.
+        OrderDto? created = null;
+        if (await GeneratedOrderEntryAsync(id, ct) is int orderEntry)
+        {
+            try
+            {
+                var orderJson = await _sapClient.GetAsync($"Orders({orderEntry})?$select={OrderSelect}", ct);
+                using var orderDoc = JsonDocument.Parse(orderJson);
+                created = MapOrder(orderDoc.RootElement, OrderStatus.Approved);
+            }
+            catch (SapException) { /* fall through to the fallback below */ }
+        }
+        created ??= await FindNewestAsync("Orders", draft.CustomerCode, draft.CreatedByAppUser,
+                        OrderStatus.Approved, isDraft: false, ct)
+                    // Generated but not found (shouldn't happen): still a success;
+                    // the app just refreshes the list.
+                    ?? new OrderDto { CustomerCode = draft.CustomerCode, Status = OrderStatus.Approved };
+        return CreatedResult(created);
     }
 
     // GET /api/orders/{id}/pdf  (RF-16)
@@ -152,6 +196,14 @@ public class OrdersController : ControllerBase
     [HttpPost("{id:int}/close")]
     public async Task<ActionResult<OrderDto>> Close(int id, CancellationToken ct)
     {
+        // Ownership check BEFORE closing — the close itself is irreversible.
+        var ownerJson = await _sapClient.GetAsync($"Orders({id})?$select=DocEntry,U_SL_UsuarioApp", ct);
+        using (var ownerDoc = JsonDocument.Parse(ownerJson))
+        {
+            if (!IsOwnedByCaller(MapOrder(ownerDoc.RootElement, OrderStatus.Approved)))
+                return OrderNotFound();
+        }
+
         await _sapClient.PostAsync($"Orders({id})/Close", new { }, ct);
 
         var json = await _sapClient.GetAsync($"Orders({id})?$select={OrderSelect}", ct);
@@ -169,6 +221,7 @@ public class OrdersController : ControllerBase
         OrderDto source;
         using (var srcDoc = JsonDocument.Parse(srcJson))
             source = MapOrder(srcDoc.RootElement, OrderStatus.Approved);
+        if (!IsOwnedByCaller(source)) return OrderNotFound();
 
         // Rebuild a fresh create request from the source. Dates and doc numbers are
         // left to SAP; prices are NOT copied so the new order re-prices against the
@@ -217,7 +270,8 @@ public class OrdersController : ControllerBase
         }
         catch (SapException ex) when (IsApprovalDraftCreated(ex))
         {
-            return await FindNewDraftAsync(request.CustomerCode, ct)
+            return await FindNewestAsync("Drafts", request.CustomerCode, User.Identity?.Name,
+                       OrderStatus.Pending, isDraft: true, ct)
                    // Draft not found (shouldn't happen): still report success
                    // as pending, without an id — the app falls back to the list.
                    ?? new OrderDto { CustomerCode = request.CustomerCode, Status = OrderStatus.Pending };
@@ -242,22 +296,22 @@ public class OrdersController : ControllerBase
         }
     }
 
-    // Newest sales-order draft of this app user for this customer — the one the
-    // POST just created (a rep doesn't submit two orders for the same customer
-    // in the same instant). Best-effort: a lookup failure must not turn the
-    // successful creation into an error.
-    private async Task<OrderDto?> FindNewDraftAsync(string customerCode, CancellationToken ct)
+    // Newest sales order (entity "Orders") or sales-order draft ("Drafts") of
+    // this app user for this customer — the one just created by a POST (a rep
+    // doesn't submit two orders for the same customer in the same instant).
+    // Best-effort: a lookup failure must not turn a successful creation into
+    // an error.
+    private async Task<OrderDto?> FindNewestAsync(
+        string entity, string customerCode, string? appUsername,
+        string status, bool isDraft, CancellationToken ct)
     {
-        var filters = new List<string>
-        {
-            $"DocObjectCode eq '{SalesOrderObjectCode}'",
-            $"CardCode eq '{customerCode.Replace("'", "''")}'"
-        };
-        var username = User.Identity?.Name;
-        if (!string.IsNullOrWhiteSpace(username))
-            filters.Add($"U_SL_UsuarioApp eq '{username.Replace("'", "''")}'");
+        var filters = new List<string> { $"CardCode eq '{customerCode.Replace("'", "''")}'" };
+        if (isDraft)
+            filters.Add($"DocObjectCode eq '{SalesOrderObjectCode}'");
+        if (!string.IsNullOrWhiteSpace(appUsername))
+            filters.Add($"U_SL_UsuarioApp eq '{appUsername.Replace("'", "''")}'");
 
-        var query = $"Drafts?$select={OrderSelect}&$orderby=DocEntry desc&$top=1"
+        var query = $"{entity}?$select={OrderSelect}&$orderby=DocEntry desc&$top=1"
                     + $"&$filter={Uri.EscapeDataString(string.Join(" and ", filters))}";
         try
         {
@@ -265,7 +319,7 @@ public class OrdersController : ControllerBase
             using var doc = JsonDocument.Parse(json);
             var first = doc.RootElement.GetProperty("value").EnumerateArray().FirstOrDefault();
             return first.ValueKind == JsonValueKind.Object
-                ? MapOrder(first, OrderStatus.Pending)
+                ? MapOrder(first, status, isDraft)
                 : null;
         }
         catch (SapException)
@@ -274,14 +328,118 @@ public class OrdersController : ControllerBase
         }
     }
 
-    // 201 pointing at the right entity: pending orders are Drafts, so their
-    // Location needs ?status=pending (see GetById).
+    // SAP approval request statuses (ApprovalRequests.Status) we map to tabs.
+    // arsGenerated (draft already turned into an Order) and arsCancelled are
+    // deliberately not listed as drafts.
+    private const string ApprovalPending = "arsPending";
+    private const string ApprovalApproved = "arsApproved";
+    private const string ApprovalRejected = "arsNotApproved";
+
+    // DocEntry of every draft whose approval request has the given status AND
+    // is still a draft. Verified against the client's SAP: generating the
+    // Order from an approved draft does NOT change Status (stays arsApproved);
+    // instead the request flips IsDraft 'Y' -> 'N' and ObjectEntry gets the new
+    // Order's DocEntry (and the draft itself becomes DocumentStatus bost_Close).
+    // Filtering IsDraft in the query (not in memory) matters: generated
+    // requests stay arsApproved forever and would otherwise crowd the page.
+    // Not filtered by document type — the Drafts query that consumes these
+    // entries already restricts to sales orders (draft DocEntries are unique
+    // across document types).
+    // NOTE: Service Layer pages at 20 rows by default (see ItemsController), so
+    // this sees the 20 newest requests in that status — enough for in-flight
+    // approvals; old rejections beyond that drop off the Rejected tab.
+    private async Task<HashSet<int>> DraftEntriesByApprovalAsync(string approvalStatus, CancellationToken ct)
+    {
+        var filter = $"Status eq '{approvalStatus}' and IsDraft eq 'Y'";
+        var query = "ApprovalRequests?$select=Code,DraftEntry&$orderby=Code desc"
+                    + $"&$filter={Uri.EscapeDataString(filter)}";
+        var json = await _sapClient.GetAsync(query, ct);
+        using var doc = JsonDocument.Parse(json);
+
+        var entries = new HashSet<int>();
+        foreach (var r in doc.RootElement.GetProperty("value").EnumerateArray())
+        {
+            if (Int(r, "DraftEntry") is int entry and > 0)
+                entries.Add(entry);
+        }
+        return entries;
+    }
+
+    // DocEntry of the Order generated from a draft (ApprovalRequests.ObjectEntry
+    // once IsDraft is 'N'), or null if not generated / not found.
+    private async Task<int?> GeneratedOrderEntryAsync(int draftEntry, CancellationToken ct)
+    {
+        var query = "ApprovalRequests?$select=Code,IsDraft,ObjectEntry"
+                    + $"&$filter={Uri.EscapeDataString($"DraftEntry eq {draftEntry}")}";
+        try
+        {
+            var json = await _sapClient.GetAsync(query, ct);
+            using var doc = JsonDocument.Parse(json);
+            foreach (var r in doc.RootElement.GetProperty("value").EnumerateArray())
+            {
+                if (Str(r, "IsDraft") == "N" && Int(r, "ObjectEntry") is int entry and > 0)
+                    return entry;
+            }
+        }
+        catch (SapException)
+        {
+            // Best-effort — caller falls back to FindNewestAsync.
+        }
+        return null;
+    }
+
+    // Sales-order drafts (scoped to the caller like every list) whose approval
+    // request is in the given status.
+    private async Task<List<OrderDto>> ListDraftsByApprovalAsync(
+        string approvalStatus, string displayStatus, CancellationToken ct)
+    {
+        var entries = await DraftEntriesByApprovalAsync(approvalStatus, ct);
+        if (entries.Count == 0) return new List<OrderDto>();
+
+        var filters = new List<string>
+        {
+            $"DocObjectCode eq '{SalesOrderObjectCode}'",
+            // Belt and braces with IsDraft above: a generated draft is closed.
+            "DocumentStatus eq 'bost_Open'",
+            "(" + string.Join(" or ", entries.Select(e => $"DocEntry eq {e}")) + ")"
+        };
+        var ownerFilter = BuildAppUserFilter();
+        if (ownerFilter != null) filters.Add(ownerFilter);
+
+        var query = $"Drafts?$select={OrderSelect}&$orderby=DocEntry desc"
+                    + $"&$filter={Uri.EscapeDataString(string.Join(" and ", filters))}";
+        var json = await _sapClient.GetAsync(query, ct);
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("value")
+            .EnumerateArray()
+            .Select(e => MapOrder(e, displayStatus, isDraft: true))
+            .ToList();
+    }
+
+    private async Task<List<OrderDto>> ListOrdersAsync(CancellationToken ct)
+    {
+        var query = $"Orders?$select={OrderSelect}&$orderby=DocDate desc&$top=50";
+        var ownerFilter = BuildAppUserFilter();
+        if (ownerFilter != null)
+            query += $"&$filter={Uri.EscapeDataString(ownerFilter)}";
+
+        var json = await _sapClient.GetAsync(query, ct);
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty("value")
+            .EnumerateArray()
+            .Select(e => MapOrder(e, OrderStatus.Approved))
+            .ToList();
+    }
+
+    // 201 pointing at the right entity: drafts need ?status=&draft=true so
+    // GetById reads Drafts instead of Orders.
     private ActionResult<OrderDto> CreatedResult(OrderDto created)
     {
         if (created.Id == 0)
             return StatusCode(StatusCodes.Status201Created, created);
-        return created.Status == OrderStatus.Pending
-            ? CreatedAtAction(nameof(GetById), new { id = created.Id, status = OrderStatus.Pending }, created)
+        return created.IsDraft
+            ? CreatedAtAction(nameof(GetById),
+                new { id = created.Id, status = created.Status, draft = true }, created)
             : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
@@ -358,24 +516,38 @@ public class OrdersController : ControllerBase
         return body;
     }
 
-    // Reps only see/own the orders THEY created in the app (by app username,
+    // Reps only see/act on the orders THEY created in the app (by app username,
     // U_SL_UsuarioApp — not by SalesPersonCode, which can be shared across
-    // app users); Administrators see everything.
+    // app users); Administrators see and act on everything. Null = no filter.
     private string? BuildAppUserFilter()
     {
         if (User.IsInRole("Administrator")) return null;
-        var username = User.Identity?.Name;
-        if (string.IsNullOrWhiteSpace(username)) return null;
+        // A JWT always carries the username; if it somehow doesn't, match
+        // nothing rather than everything.
+        var username = User.Identity?.Name ?? string.Empty;
         // Escape single quotes for the OData literal (SAP's own escaping rule:
         // a literal quote is written as two quotes).
         var escaped = username.Replace("'", "''");
         return $"U_SL_UsuarioApp eq '{escaped}'";
     }
 
+    // Single-order counterpart of BuildAppUserFilter.
+    private bool IsOwnedByCaller(OrderDto order)
+    {
+        if (User.IsInRole("Administrator")) return true;
+        var username = User.Identity?.Name;
+        return !string.IsNullOrWhiteSpace(username)
+               && string.Equals(order.CreatedByAppUser, username, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // 404 (not 403) for someone else's order: don't reveal that it exists.
+    private NotFoundObjectResult OrderNotFound() =>
+        NotFound(new { message = "Order not found." });
+
     private int? CurrentSalesPersonCode() =>
         int.TryParse(User.FindFirst("salesEmployeeCode")?.Value, out var code) ? code : null;
 
-    private static OrderDto MapOrder(JsonElement e, string status)
+    private static OrderDto MapOrder(JsonElement e, string status, bool isDraft = false)
     {
         var dto = new OrderDto
         {
@@ -391,7 +563,8 @@ public class OrdersController : ControllerBase
             DocTotal = Dec(e, "DocTotal") ?? 0m,
             PaymentTermsGroupCode = Int(e, "PaymentGroupCode"),
             CreatedByAppUser = Str(e, "U_SL_UsuarioApp"),
-            Status = status
+            Status = status,
+            IsDraft = isDraft
         };
 
         if (e.TryGetProperty("DocumentLines", out var lines) && lines.ValueKind == JsonValueKind.Array)

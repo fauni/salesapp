@@ -70,6 +70,11 @@ public class OrderDto
     // SAP owns approval. We only DISPLAY the procedure status, never change it.
     public string Status { get; set; } = OrderStatus.Approved; // pending|approved|rejected
 
+    // True when this is a SAP Draft, not a real Order. Pending/rejected orders
+    // are always drafts; an APPROVED draft is one SAP authorized but nobody has
+    // turned into an Order yet — POST /api/orders/{id}/generate does that.
+    public bool IsDraft { get; set; }
+
     // True when every line is closed in SAP (LineStatus = bost_Close), i.e. the
     // order was closed via POST /api/orders/{id}/close. Only meaningful for
     // approved orders — Status itself doesn't change on close.

@@ -26,9 +26,11 @@ class OrderDetailScreen extends StatelessWidget {
       },
       child: BlocBuilder<OrderDetailBloc, OrderDetailState>(
         builder: (context, state) {
-          final title = state.order != null
-              ? 'Pedido #${state.order!.docNum}'
-              : 'Pedido';
+          final title = state.order == null
+              ? 'Pedido'
+              : state.order!.isDraft
+                  ? 'Borrador #${state.order!.docNum}'
+                  : 'Pedido #${state.order!.docNum}';
           return AppScaffold(
             title: title,
             onBack: () => context.pop(),
@@ -337,8 +339,10 @@ class _ActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final order = state.order!;
     // Only approved (non-draft) orders that aren't already closed can be
-    // closed — pending/rejected are Drafts and don't support this SAP action.
-    final canClose = order.status == 'approved' && !order.isClosed;
+    // closed — drafts (pending/rejected, or approved but not generated yet)
+    // don't support this SAP action.
+    final canClose =
+        order.status == 'approved' && !order.isDraft && !order.isClosed;
 
     return Container(
       decoration: const BoxDecoration(

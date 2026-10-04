@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../blocs/orders/orders_bloc.dart';
+import '../../data/models/order.dart';
 import '../theme/app_colors.dart';
 import '../orders/widgets/order_card.dart';
 import '../orders/widgets/status_segmented_control.dart';
@@ -21,24 +22,66 @@ class HomeScreen extends StatelessWidget {
       floatingActionButton: GradientFab(
         onPressed: () => context.go('/new-order'),
       ),
-      body: BlocBuilder<OrdersBloc, OrdersState>(
-        builder: (context, state) {
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: StatusSegmentedControl(
-                  value: state.filter,
-                  onChanged: (f) =>
-                      context.read<OrdersBloc>().add(OrdersFilterChanged(f)),
-                ),
-              ),
-              Expanded(child: _OrdersList(state: state)),
-            ],
-          );
+      body: BlocListener<OrdersBloc, OrdersState>(
+        listenWhen: (p, c) =>
+            (c.generated != null && p.generated != c.generated) ||
+            (c.generateError != null && p.generateError != c.generateError),
+        listener: (context, state) {
+          final generated = state.generated;
+          final message = generated == null
+              ? state.generateError!
+              : generated.id > 0
+                  ? 'Orden de venta #${generated.docNum} generada en SAP'
+                  : 'Orden de venta generada en SAP';
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(message)));
         },
+        child: BlocBuilder<OrdersBloc, OrdersState>(
+          builder: (context, state) {
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: StatusSegmentedControl(
+                    value: state.filter,
+                    onChanged: (f) =>
+                        context.read<OrdersBloc>().add(OrdersFilterChanged(f)),
+                  ),
+                ),
+                Expanded(child: _OrdersList(state: state)),
+              ],
+            );
+          },
+        ),
       ),
     );
+  }
+}
+
+/// Confirms, then asks SAP to turn the authorized draft into the real order.
+Future<void> _confirmGenerate(BuildContext context, Order order) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Generar orden de venta'),
+      content: Text(
+          'El borrador #${order.docNum} de ${order.customerName ?? order.customerCode} '
+          'ya fue autorizado en SAP. ¿Generar la orden de venta?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Generar'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    context.read<OrdersBloc>().add(OrdersGenerateRequested(order.id));
   }
 }
 
@@ -89,8 +132,11 @@ class _OrdersList extends StatelessWidget {
               final order = state.orders[i];
               return OrderCard(
                 order: order,
-                onTap: () =>
-                    context.push('/orders/${order.id}?status=${order.status}'),
+                onTap: () => context.push(order.detailPath),
+                onGenerate: order.canGenerate
+                    ? () => _confirmGenerate(context, order)
+                    : null,
+                generating: state.generatingId == order.id,
               );
             },
           ),

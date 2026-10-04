@@ -15,6 +15,33 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<OrdersStarted>((event, emit) => _load(state.filter, emit));
     on<OrdersFilterChanged>((event, emit) => _load(event.filter, emit));
     on<OrdersRefreshed>((event, emit) => _load(state.filter, emit));
+    on<OrdersGenerateRequested>(_onGenerate);
+  }
+
+  Future<void> _onGenerate(
+      OrdersGenerateRequested event, Emitter<OrdersState> emit) async {
+    if (state.generatingId != null) return; // one at a time
+    emit(state.copyWith(generatingId: event.draftId));
+    final Order order;
+    try {
+      order = await _repository.generate(event.draftId);
+    } on ApiException catch (e) {
+      emit(state.copyWith(clearGenerating: true, generateError: e.message));
+      return;
+    }
+    // The draft became an Order: reload so it shows as a regular order. A
+    // failed reload must not read as a failed generation — keep the old list.
+    List<Order>? orders;
+    try {
+      orders = await _repository.listByStatus(state.filter.api);
+    } on ApiException {
+      orders = null;
+    }
+    emit(state.copyWith(
+      orders: orders,
+      clearGenerating: true,
+      generated: order,
+    ));
   }
 
   Future<void> _load(OrderStatusFilter filter, Emitter<OrdersState> emit) async {
