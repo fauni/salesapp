@@ -216,6 +216,9 @@ class _LineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uom = line.salesUnitOfMeasure ?? '';
+    final liters = line.quantityInLiters != null
+        ? ' (${formatQty(line.quantityInLiters!)} L)'
+        : '';
     final priceText =
         line.unitPrice != null ? ' × ${formatMoney(line.unitPrice!)}' : '';
     return Padding(
@@ -237,7 +240,7 @@ class _LineRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${formatQty(line.quantity)} $uom$priceText · ${line.itemCode}',
+                  '${formatQty(line.quantity)} $uom$liters$priceText · ${line.itemCode}',
                   style:
                       GoogleFonts.inter(color: AppColors.text2, fontSize: 12),
                 ),

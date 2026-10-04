@@ -1,4 +1,7 @@
 {
-  "API_BASE_URL": "http://177.222.46.162:9090",
-  "ALLOW_SELF_SIGNED": true
+  "API_BASE_URL": "https://localhost:7047",
+  "ALLOW_SELF_SIGNED": true,
+  "API_BASE_URL_LOCAL": "https://localhost:7047",
+  "API_BASE_URL_REMOTE": "http://177.222.46.162:9090"
 }
+

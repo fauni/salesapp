@@ -93,6 +93,7 @@ class OrderRepository {
               'itemCode': l.itemCode,
               'quantity': l.quantity,
               'salesUnitOfMeasure': ?l.salesUnitOfMeasure,
+              'quantityInLiters': ?l.quantityInLiters,
               'unitPrice': ?l.unitPrice,
               'warehouseCode': ?l.warehouseCode,
               'projectCode': ?l.projectCode,

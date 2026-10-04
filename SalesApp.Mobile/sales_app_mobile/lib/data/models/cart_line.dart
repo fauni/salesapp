@@ -10,6 +10,10 @@ class CartLine extends Equatable {
   /// Sales UoM only (no TFE UoM). Optional — SAP uses the item default if null.
   final String? salesUnitOfMeasure;
 
+  /// Liters entered for items sold by liters ([quantity] is derived from it).
+  /// Sent to SAP in the line UDF `U_TF_CANTLT`. Null for regular items.
+  final double? quantityInLiters;
+
   /// Optional manual price. Without a price list, SAP resolves the price on
   /// submit when this is null.
   final double? unitPrice;
@@ -29,6 +33,7 @@ class CartLine extends Equatable {
     required this.itemName,
     required this.quantity,
     this.salesUnitOfMeasure,
+    this.quantityInLiters,
     this.unitPrice,
     this.warehouseCode,
     this.projectCode,
@@ -48,6 +53,7 @@ class CartLine extends Equatable {
         itemName: itemName,
         quantity: quantity,
         salesUnitOfMeasure: salesUnitOfMeasure,
+        quantityInLiters: quantityInLiters,
         unitPrice: unitPrice,
         warehouseCode: warehouseCode,
         projectCode: keepProjectCode ? this.projectCode : projectCode,
@@ -60,6 +66,7 @@ class CartLine extends Equatable {
         itemName,
         quantity,
         salesUnitOfMeasure,
+        quantityInLiters,
         unitPrice,
         warehouseCode,
         projectCode,

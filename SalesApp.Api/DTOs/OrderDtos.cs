@@ -31,6 +31,10 @@ public class CreateOrderLineRequest
     // (TFE) UoM is NOT captured here (diverges from the original CLAUDE.md note).
     public string? SalesUnitOfMeasure { get; set; }          // -> SAP line UoMCode
 
+    // Liters the rep entered for items sold by liters (Quantity was derived
+    // from it in the app). Null for regular items.
+    public decimal? QuantityInLiters { get; set; }           // -> SAP line UDF U_TF_CANTLT
+
     public decimal? UnitPrice { get; set; }                  // optional; SAP resolves from price list if null
     public string? WarehouseCode { get; set; }
     public string? ProjectCode { get; set; }                 // -> SAP line ProjectCode
@@ -82,6 +86,7 @@ public class OrderLineDto
     public string? Description { get; set; }                 // SAP line ItemDescription
     public decimal Quantity { get; set; }
     public string? SalesUnitOfMeasure { get; set; }          // SAP UoMCode / MeasureUnit
+    public decimal? QuantityInLiters { get; set; }           // SAP line UDF U_TF_CANTLT
     public decimal? UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
     public string? WarehouseCode { get; set; }

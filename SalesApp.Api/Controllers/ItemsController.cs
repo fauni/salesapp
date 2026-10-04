@@ -19,8 +19,10 @@ public class ItemsController : ControllerBase
 
     // Nested collections (ItemPrices / ItemWarehouseInfoCollection) must be in the
     // $select so SAP returns them inline — that's how we get price and stock.
+    // InventoryWeight/InventoryUOM drive "sell by liters" (see ItemDto.LitersPerUnit).
     private const string ItemSelect =
-        "ItemCode,ItemName,ItemsGroupCode,ItemPrices,ItemWarehouseInfoCollection";
+        "ItemCode,ItemName,ItemsGroupCode,InventoryWeight,InventoryUOM,"
+        + "ItemPrices,ItemWarehouseInfoCollection";
 
     // SAP Service Layer caps results per page (default 20) unless the caller sends
     // a Prefer: odata.maxpagesize header, which SapClient doesn't do today. Clamp
@@ -185,8 +187,14 @@ public class ItemsController : ControllerBase
         {
             Code = Str(e, "ItemCode") ?? string.Empty,
             Name = Str(e, "ItemName") ?? string.Empty,
-            GroupCode = Int(e, "ItemsGroupCode")
+            GroupCode = Int(e, "ItemsGroupCode"),
+            InventoryUom = Str(e, "InventoryUOM")
         };
+
+        // 0 means "not configured" in SAP — expose as null so the app falls
+        // back to a plain editable quantity.
+        var weight = Dec(e, "InventoryWeight");
+        if (weight > 0) dto.LitersPerUnit = weight;
 
         // Every price-list row SAP has for this item, plus (if requested) the
         // single one resolved for the caller's price list — same pattern as

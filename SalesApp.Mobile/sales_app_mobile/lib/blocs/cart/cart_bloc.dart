@@ -79,6 +79,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
             itemName: l.description ?? l.itemCode,
             quantity: l.quantity,
             salesUnitOfMeasure: l.salesUnitOfMeasure,
+            quantityInLiters: l.quantityInLiters,
             unitPrice: l.unitPrice,
             warehouseCode: l.warehouseCode,
             projectCode: l.projectCode,

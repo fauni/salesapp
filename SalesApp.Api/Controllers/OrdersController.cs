@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesApp.Api.DTOs;
+using SalesApp.Core.Exceptions;
 using SalesApp.Core.Interfaces;
 using SalesApp.Infrastructure.Catalog;
 
@@ -51,14 +52,10 @@ public class OrdersController : ControllerBase
         if (request.Lines.Count == 0)
             return BadRequest(new { message = "An order needs at least one line." });
 
-        var body = BuildOrderBody(request);
-
         // NOTE: no credit-limit check here — intentionally out of scope.
         // SAP validation errors surface via SapExceptionFilter (400/502).
-        var json = await _sapClient.PostAsync("Orders", body, ct);
-        using var doc = JsonDocument.Parse(json);
-        var created = MapOrder(doc.RootElement, OrderStatus.Approved);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        var created = await CreateInSapAsync(request, ct);
+        return CreatedResult(created);
     }
 
     // GET /api/orders?status=pending|approved|rejected  (RF-12)
@@ -187,19 +184,106 @@ public class OrdersController : ControllerBase
                 ItemCode = l.ItemCode,
                 Quantity = l.Quantity,
                 SalesUnitOfMeasure = l.SalesUnitOfMeasure,
+                QuantityInLiters = l.QuantityInLiters,
                 WarehouseCode = l.WarehouseCode,
                 ProjectCode = l.ProjectCode,
                 BranchCode = l.BranchCode
             }).ToList()
         };
 
-        var json = await _sapClient.PostAsync("Orders", BuildOrderBody(clone), ct);
-        using var doc = JsonDocument.Parse(json);
-        var created = MapOrder(doc.RootElement, OrderStatus.Approved);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        var created = await CreateInSapAsync(clone, ct);
+        return CreatedResult(created);
     }
 
     // --- helpers ---
+
+    // SAP error code Service Layer returns when an Approval Procedure turned
+    // the new Order into a Draft: the draft IS created, but SL then tries to
+    // read the new document back from Orders, finds nothing and fails with
+    // {"error":{"code":-2028,"message":{"value":"No matching records found (ODBC -2028)"}}}.
+    private const int SapApprovalDraftCreatedCode = -2028;
+
+    // POSTs the order. Normal case: SAP returns the created Order (approved).
+    // Approval case: -2028 means "created as a Draft, pending authorization" —
+    // a SUCCESS for us, never an error, or the rep would resubmit and create a
+    // duplicate draft. We then look up that draft to return its numbers.
+    private async Task<OrderDto> CreateInSapAsync(CreateOrderRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var json = await _sapClient.PostAsync("Orders", BuildOrderBody(request), ct);
+            using var doc = JsonDocument.Parse(json);
+            return MapOrder(doc.RootElement, OrderStatus.Approved);
+        }
+        catch (SapException ex) when (IsApprovalDraftCreated(ex))
+        {
+            return await FindNewDraftAsync(request.CustomerCode, ct)
+                   // Draft not found (shouldn't happen): still report success
+                   // as pending, without an id — the app falls back to the list.
+                   ?? new OrderDto { CustomerCode = request.CustomerCode, Status = OrderStatus.Pending };
+        }
+    }
+
+    private static bool IsApprovalDraftCreated(SapException ex)
+    {
+        if (ex.StatusCode != StatusCodes.Status404NotFound) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(ex.ResponseBody);
+            return doc.RootElement.TryGetProperty("error", out var err)
+                   && err.TryGetProperty("code", out var code)
+                   && code.ValueKind == JsonValueKind.Number
+                   && code.TryGetInt32(out var c)
+                   && c == SapApprovalDraftCreatedCode;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    // Newest sales-order draft of this app user for this customer — the one the
+    // POST just created (a rep doesn't submit two orders for the same customer
+    // in the same instant). Best-effort: a lookup failure must not turn the
+    // successful creation into an error.
+    private async Task<OrderDto?> FindNewDraftAsync(string customerCode, CancellationToken ct)
+    {
+        var filters = new List<string>
+        {
+            $"DocObjectCode eq '{SalesOrderObjectCode}'",
+            $"CardCode eq '{customerCode.Replace("'", "''")}'"
+        };
+        var username = User.Identity?.Name;
+        if (!string.IsNullOrWhiteSpace(username))
+            filters.Add($"U_SL_UsuarioApp eq '{username.Replace("'", "''")}'");
+
+        var query = $"Drafts?$select={OrderSelect}&$orderby=DocEntry desc&$top=1"
+                    + $"&$filter={Uri.EscapeDataString(string.Join(" and ", filters))}";
+        try
+        {
+            var json = await _sapClient.GetAsync(query, ct);
+            using var doc = JsonDocument.Parse(json);
+            var first = doc.RootElement.GetProperty("value").EnumerateArray().FirstOrDefault();
+            return first.ValueKind == JsonValueKind.Object
+                ? MapOrder(first, OrderStatus.Pending)
+                : null;
+        }
+        catch (SapException)
+        {
+            return null;
+        }
+    }
+
+    // 201 pointing at the right entity: pending orders are Drafts, so their
+    // Location needs ?status=pending (see GetById).
+    private ActionResult<OrderDto> CreatedResult(OrderDto created)
+    {
+        if (created.Id == 0)
+            return StatusCode(StatusCodes.Status201Created, created);
+        return created.Status == OrderStatus.Pending
+            ? CreatedAtAction(nameof(GetById), new { id = created.Id, status = OrderStatus.Pending }, created)
+            : CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+    }
 
     // Builds the SAP order payload, omitting null/empty fields so we never
     // overwrite SAP defaults with nulls.
@@ -217,6 +301,10 @@ public class OrdersController : ControllerBase
             };
             if (!string.IsNullOrWhiteSpace(l.SalesUnitOfMeasure))
                 line["UoMCode"] = l.SalesUnitOfMeasure;
+            // Custom SAP field (UDF on order rows): liters entered by the rep for
+            // items sold by liters. Quantity already holds liters / InventoryWeight.
+            if (l.QuantityInLiters.HasValue)
+                line["U_TF_CANTLT"] = l.QuantityInLiters.Value;
             // The rep enters the gross (VAT-inclusive) unit price. In SAP that is
             // the line's "price after VAT" — DB field RDR1.PriceAfVAT, exposed by
             // the Service Layer as PriceAfterVAT. SAP back-calculates the net
@@ -320,6 +408,8 @@ public class OrdersController : ControllerBase
                     Description = Str(l, "ItemDescription") ?? Str(l, "Dscription"),
                     Quantity = Dec(l, "Quantity") ?? 0m,
                     SalesUnitOfMeasure = Str(l, "UoMCode") ?? Str(l, "MeasureUnit"),
+                    // UDF defaults to 0 on lines that never set it — treat as "none".
+                    QuantityInLiters = Dec(l, "U_TF_CANTLT") is > 0 and var liters ? liters : null,
                     // Surface the gross (VAT-inclusive) price the rep entered —
                     // SAP's PriceAfterVAT — falling back to the net UnitPrice.
                     UnitPrice = Dec(l, "PriceAfterVAT") ?? Dec(l, "UnitPrice"),

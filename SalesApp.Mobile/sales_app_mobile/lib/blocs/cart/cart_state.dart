@@ -25,6 +25,11 @@ class CartState extends Equatable {
   /// unset, so this can be 0 even with items in the cart.
   double get total => lines.fold(0, (sum, l) => sum + l.subtotal);
 
+  /// Sum of the liters entered on lines sold by liters (display only — not
+  /// sent to SAP). Regular lines contribute nothing; 0 means "no liter lines".
+  double get totalLiters =>
+      lines.fold(0, (sum, l) => sum + (l.quantityInLiters ?? 0));
+
   bool get isEmpty => lines.isEmpty;
 
   CartLine? lineFor(String itemCode) {

@@ -13,6 +13,15 @@ class Item {
   final String code;
   final String name;
   final int? groupCode;
+
+  /// Liters per inventory unit (SAP `InventoryWeight`). Non-null means the
+  /// item is sold by liters: the rep enters liters and the quantity is derived
+  /// (see [quantityForLiters]), always in [inventoryUom].
+  final double? litersPerUnit;
+
+  /// SAP `InventoryUOM` code — the fixed UoM for items sold by liters.
+  final String? inventoryUom;
+
   final double? price;
   final String? currency;
   final int? priceList;
@@ -23,6 +32,8 @@ class Item {
     required this.code,
     required this.name,
     this.groupCode,
+    this.litersPerUnit,
+    this.inventoryUom,
     this.price,
     this.currency,
     this.priceList,
@@ -37,6 +48,20 @@ class Item {
       if (p.priceList == priceListNum) return p;
     }
     return null;
+  }
+
+  bool get sellsByLiters => (litersPerUnit ?? 0) > 0;
+
+  /// Units of inventory for [liters], or null unless [liters] is an exact,
+  /// non-zero multiple of [litersPerUnit] (client rule: no fractional units).
+  int? quantityForLiters(double liters) {
+    final perUnit = litersPerUnit;
+    if (perUnit == null || perUnit <= 0 || liters <= 0) return null;
+    final units = liters / perUnit;
+    final rounded = units.round();
+    // Tolerance absorbs binary float noise (e.g. 0.3 / 0.1 = 2.9999999999999996).
+    if (rounded < 1 || (units - rounded).abs() > 1e-6) return null;
+    return rounded;
   }
 
   /// Sellable-now stock across all warehouses.

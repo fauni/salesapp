@@ -303,12 +303,23 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         if (state.status == SubmitStatus.success && state.created != null) {
           final order = state.created!;
           final router = GoRouter.of(context);
+          // SAP's approval procedure turns the order into a Draft: the backend
+          // reports it as "pending" (id = draft DocEntry, or 0 if the draft
+          // couldn't be looked up). Approved orders are real SAP Orders.
+          final pending = order.status == 'pending';
+          final message = !pending
+              ? 'Pedido creado (#${order.docNum})'
+              : order.id > 0
+                  ? 'Pedido enviado a autorización (borrador #${order.docNum})'
+                  : 'Pedido enviado a autorización';
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
-            ..showSnackBar(
-                SnackBar(content: Text('Pedido creado (#${order.docNum})')));
+            ..showSnackBar(SnackBar(content: Text(message)));
           router.go('/');
-          router.push('/orders/${order.id}');
+          if (order.id > 0) {
+            // The detail must know the status to read Drafts vs Orders.
+            router.push('/orders/${order.id}?status=${order.status}');
+          }
         } else if (state.status == SubmitStatus.failure) {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
@@ -539,6 +550,33 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
+  /// Small caps label over a bold figure, used for the footer totals.
+  Widget _footerFigure(
+    String label,
+    String value, {
+    required double valueSize,
+    bool alignEnd = false,
+  }) {
+    return Column(
+      crossAxisAlignment:
+          alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label,
+            style: GoogleFonts.plusJakartaSans(
+                color: AppColors.text3,
+                fontWeight: FontWeight.w600,
+                fontSize: 10,
+                letterSpacing: 0.5)),
+        Text(value,
+            style: GoogleFonts.plusJakartaSans(
+                color: AppColors.text1,
+                fontWeight: FontWeight.w800,
+                fontSize: valueSize)),
+      ],
+    );
+  }
+
   Widget _footer(CartState cart) {
     return BlocBuilder<SubmitOrderBloc, SubmitOrderState>(
       builder: (context, submit) {
@@ -552,32 +590,36 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(
+              // Two rows: totals on top (liters left, amount right), then a
+              // full-width button — keeps both figures readable on narrow
+              // screens and large amounts.
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text('TOTAL',
-                          style: GoogleFonts.plusJakartaSans(
-                              color: AppColors.text3,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 10,
-                              letterSpacing: 0.5)),
-                      Text(formatMoney(cart.total),
-                          style: GoogleFonts.plusJakartaSans(
-                              color: AppColors.text1,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20)),
+                      if (cart.totalLiters > 0)
+                        _footerFigure(
+                          'LITROS',
+                          '${formatQty(cart.totalLiters)} L',
+                          valueSize: 18,
+                        ),
+                      const Spacer(),
+                      _footerFigure(
+                        'TOTAL',
+                        formatMoney(cart.total),
+                        valueSize: 22,
+                        alignEnd: true,
+                      ),
                     ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: GradientButton(
-                      label: 'Confirmar pedido',
-                      loading: submitting,
-                      onPressed: cart.isEmpty ? null : () => _submit(cart),
-                    ),
+                  const SizedBox(height: 12),
+                  GradientButton(
+                    label: 'Confirmar pedido',
+                    loading: submitting,
+                    onPressed: cart.isEmpty ? null : () => _submit(cart),
                   ),
                 ],
               ),
@@ -597,6 +639,9 @@ class _LineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uom = line.salesUnitOfMeasure ?? '';
+    final liters = line.quantityInLiters != null
+        ? ' (${formatQty(line.quantityInLiters!)} L)'
+        : '';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
       child: Row(
@@ -611,7 +656,8 @@ class _LineRow extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         fontSize: 14)),
                 const SizedBox(height: 2),
-                Text('${formatQty(line.quantity)} $uom · ${line.itemCode}',
+                Text(
+                    '${formatQty(line.quantity)} $uom$liters · ${line.itemCode}',
                     style: GoogleFonts.inter(
                         color: AppColors.text2, fontSize: 12)),
               ],

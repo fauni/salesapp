@@ -11,6 +11,15 @@ CartLine _line(String code, double qty, {double? price}) => CartLine(
     );
 
 void main() {
+  test('totalLiters sums entered liters, ignoring regular lines', () {
+    const state = CartState(lines: [
+      CartLine(itemCode: 'A', itemName: 'A', quantity: 3, quantityInLiters: 30),
+      CartLine(itemCode: 'B', itemName: 'B', quantity: 2, quantityInLiters: 10),
+      CartLine(itemCode: 'C', itemName: 'C', quantity: 5),
+    ]);
+    expect(state.totalLiters, 40); // liters, not 3 + 2 + 5 quantities
+  });
+
   test('saving lines adds, replaces by item code, and totals subtotals',
       () async {
     final bloc = CartBloc();

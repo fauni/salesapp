@@ -29,6 +29,10 @@ class LineRemoved extends LineSheetResult {}
 /// Opens the line-item config sheet (DESIGN.md screen 6). Sales UoM only (no
 /// TFE UoM). Fields limited to what the backend order line supports:
 /// quantity, warehouse, optional unit price, optional sales UoM.
+///
+/// Items sold by liters ([Item.sellsByLiters]) swap the quantity stepper for a
+/// "Cantidad en litros" input: quantity becomes read-only (liters / liters per
+/// unit, exact multiples only) and the UoM is fixed to the inventory UoM.
 Future<LineSheetResult?> showLineConfigSheet(
   BuildContext context, {
   required Item item,
@@ -74,7 +78,18 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   late final TextEditingController _quantityController;
   late final TextEditingController _priceController;
   String? _priceError;
+
+  // Sell-by-liters mode only (see showLineConfigSheet).
+  late final TextEditingController _litersController;
+  double? _liters;
+  String? _litersError;
   String? _warehouseCode;
+
+  // Numeric fields select their whole text on focus, so typing replaces the
+  // value (a second tap places the cursor to edit a single digit).
+  final _quantityFocus = FocusNode();
+  final _priceFocus = FocusNode();
+  final _litersFocus = FocusNode();
 
   /// Price list the prefilled price came from (see initState). Null once the
   /// user edits the price by hand, since the hint would no longer be accurate.
@@ -86,27 +101,64 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   bool _uomLoading = true;
   String? _uomError;
 
+  bool get _byLiters => widget.item.sellsByLiters;
+
   @override
   void initState() {
     super.initState();
     final e = widget.existing;
-    _quantity = e?.quantity ?? 1;
+    _quantity = e?.quantity ?? (_byLiters ? 0 : 1);
     _quantityController =
         TextEditingController(text: formatQty(_quantity));
+    // Lines saved before this field existed have no liters: derive them.
+    _liters = _byLiters && e != null
+        ? e.quantityInLiters ?? e.quantity * widget.item.litersPerUnit!
+        : null;
+    _litersController = TextEditingController(
+        text: _liters == null ? '' : _plainNumber(_liters!));
     // Editing an existing line keeps its saved price untouched; a new line
     // prefills from the customer's assigned price list when there's a match.
     final matchedPrice = widget.item.priceFor(widget.priceListNum);
     final resolvedPrice = e?.unitPrice ?? matchedPrice?.price;
     _priceController =
-        TextEditingController(text: resolvedPrice?.toString() ?? '');
+        TextEditingController(
+            text: resolvedPrice == null ? '' : _plainNumber(resolvedPrice));
     _priceListSource = e == null ? matchedPrice?.priceList : null;
-    _uomCode = e?.salesUnitOfMeasure; // may be null -> resolved after load
     _warehouseCode = e?.warehouseCode ??
         (widget.item.warehouses.isNotEmpty
             ? widget.item.warehouses.first.warehouseCode
             : null);
-    _loadUoms();
+    if (_byLiters) {
+      // Liters per unit is per INVENTORY unit, so the line must use it —
+      // no UoM choice, nothing to load.
+      _uomCode = widget.item.inventoryUom;
+      _uomLoading = false;
+    } else {
+      _uomCode = e?.salesUnitOfMeasure; // may be null -> resolved after load
+      _loadUoms();
+    }
+    _selectAllOnFocus(_quantityFocus, _quantityController);
+    _selectAllOnFocus(_priceFocus, _priceController);
+    _selectAllOnFocus(_litersFocus, _litersController);
   }
+
+  void _selectAllOnFocus(FocusNode node, TextEditingController controller) {
+    node.addListener(() {
+      if (!node.hasFocus) return;
+      // Post-frame: the tap that focused the field positions the cursor
+      // itself; selecting afterwards makes the select-all stick.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !node.hasFocus) return;
+        controller.selection = TextSelection(
+            baseOffset: 0, extentOffset: controller.text.length);
+      });
+    });
+  }
+
+  /// Number as typed-back text: no grouping separators (formatQty's "1,000"
+  /// would re-parse as 1.0), no trailing ".0".
+  static String _plainNumber(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
   Future<void> _loadUoms() async {
     setState(() {
@@ -143,7 +195,27 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   void dispose() {
     _quantityController.dispose();
     _priceController.dispose();
+    _litersController.dispose();
+    _quantityFocus.dispose();
+    _priceFocus.dispose();
+    _litersFocus.dispose();
     super.dispose();
+  }
+
+  /// Liters typed: recompute the read-only quantity. A non-multiple leaves
+  /// quantity at 0 and shows why, so it can't be saved.
+  void _onLitersTyped(String raw) {
+    final parsed = double.tryParse(raw.trim().replaceAll(',', '.'));
+    final units =
+        parsed == null ? null : widget.item.quantityForLiters(parsed);
+    setState(() {
+      _liters = parsed;
+      _quantity = units?.toDouble() ?? 0;
+      _litersError = parsed == null || parsed <= 0 || units != null
+          ? null
+          : 'Debe ser múltiplo de '
+              '${formatQty(widget.item.litersPerUnit!)} L';
+    });
   }
 
   void _bump(double delta) {
@@ -178,7 +250,17 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   double get _subtotal => _quantity * (_unitPrice ?? 0);
 
   void _save() {
-    _commitQuantity(); // guard against a blank/invalid quantity field
+    if (_byLiters) {
+      final liters = _liters;
+      if (liters == null ||
+          liters <= 0 ||
+          widget.item.quantityForLiters(liters) == null) {
+        setState(() => _litersError ??= 'Ingresá la cantidad en litros');
+        return;
+      }
+    } else {
+      _commitQuantity(); // guard against a blank/invalid quantity field
+    }
 
     // Unit price is now required and must be > 0.
     final price = _unitPrice;
@@ -192,6 +274,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
       itemName: widget.item.name,
       quantity: _quantity,
       salesUnitOfMeasure: _uomCode,
+      quantityInLiters: _byLiters ? _liters : null,
       unitPrice: price,
       warehouseCode: _warehouseCode,
     )));
@@ -252,7 +335,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _quantityBlock(),
+                      _byLiters ? _litersBlock() : _quantityBlock(),
                       const SizedBox(height: 16),
                       if (warehouses.isNotEmpty) ...[
                         _label('Almacén'),
@@ -264,6 +347,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                       const SizedBox(height: 6),
                       TextField(
                         controller: _priceController,
+                        focusNode: _priceFocus,
                         keyboardType: const TextInputType.numberWithOptions(
                             decimal: true),
                         inputFormatters: [
@@ -380,6 +464,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                 width: 72,
                 child: TextField(
                   controller: _quantityController,
+                  focusNode: _quantityFocus,
                   textAlign: TextAlign.center,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -415,6 +500,74 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     );
   }
 
+  /// Sell-by-liters input: the rep types liters, quantity is shown read-only.
+  Widget _litersBlock() {
+    final perUnit = widget.item.litersPerUnit!;
+    final uom = widget.item.inventoryUom ?? 'und';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.sapBlueTint,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Cantidad en litros',
+              style: GoogleFonts.plusJakartaSans(
+                  color: AppColors.text1,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _litersController,
+            focusNode: _litersFocus,
+            autofocus: widget.existing == null,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            onChanged: _onLitersTyped,
+            style: GoogleFonts.plusJakartaSans(
+              color: AppColors.text1,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+            decoration: InputDecoration(
+              hintText: '0',
+              suffixText: 'L',
+              errorText: _litersError,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Cantidad',
+                  style: GoogleFonts.inter(
+                      color: AppColors.text2, fontSize: 14)),
+              Text(
+                '${formatQty(_quantity)} $uom',
+                style: GoogleFonts.plusJakartaSans(
+                  color: AppColors.text1,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${formatQty(perUnit)} L por $uom',
+            textAlign: TextAlign.right,
+            style: GoogleFonts.inter(color: AppColors.text2, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _stepButton(IconData icon, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -433,6 +586,12 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   }
 
   Widget _uomField() {
+    if (_byLiters) {
+      return Text(
+        '${_uomCode ?? '—'} · unidad de inventario',
+        style: GoogleFonts.inter(color: AppColors.text1, fontSize: 14),
+      );
+    }
     if (_uomLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),

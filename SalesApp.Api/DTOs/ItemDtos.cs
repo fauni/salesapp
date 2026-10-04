@@ -8,6 +8,14 @@ public class ItemDto
     public string Name { get; set; } = string.Empty;   // SAP ItemName
     public int? GroupCode { get; set; }                 // SAP ItemsGroupCode (category)
 
+    // Liters per inventory unit. The client stores liters in SAP's
+    // InventoryWeight field (e.g. 10.0 = 10 L per unit). Null when SAP has 0 —
+    // the item is then sold by plain quantity. When set, the app captures the
+    // order line in liters and derives Quantity = liters / LitersPerUnit,
+    // always in the inventory UoM below.
+    public decimal? LitersPerUnit { get; set; }         // SAP InventoryWeight
+    public string? InventoryUom { get; set; }           // SAP InventoryUOM (UoM code)
+
     // Resolved from ItemPrices for the price list passed in the request. Null if
     // no price list was requested or the item has no row for that list.
     public decimal? Price { get; set; }

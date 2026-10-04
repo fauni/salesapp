@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for all network calls to the backend; debug/profile manifests
+         already declare this for the Flutter tool, but release only picks up
+         what's declared here in main. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- GPS fix captured when confirming an order, sent to SAP's U_SL_Ubicacion.
          Best-effort — the app works without it if the user denies the prompt. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
