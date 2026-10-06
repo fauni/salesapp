@@ -8,6 +8,9 @@ final DateFormat _date = DateFormat('dd/MM/yyyy');
 /// consistently.
 String formatMoney(num value) => _money.format(value);
 
+/// Display label for a SAP currency code ("BS" -> "Bs.", others as-is).
+String currencyLabel(String code) => code == 'BS' ? 'Bs.' : code;
+
 /// Quantities: trims trailing zeros (12 not 12.000, 1.5 stays 1.5).
 String formatQty(num value) => _qty.format(value);
 

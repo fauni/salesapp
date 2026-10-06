@@ -39,7 +39,7 @@ Future<LineSheetResult?> showLineConfigSheet(
   CartLine? existing,
 }) {
   final itemRepository = context.read<ItemRepository>();
-  final priceListNum = context.read<CartBloc>().state.customer?.priceListNum;
+  final customer = context.read<CartBloc>().state.customer;
   return showModalBottomSheet<LineSheetResult>(
     context: context,
     isScrollControlled: true,
@@ -48,9 +48,27 @@ Future<LineSheetResult?> showLineConfigSheet(
       item: item,
       existing: existing,
       itemRepository: itemRepository,
-      priceListNum: priceListNum,
+      priceListNum: customer?.priceListNum,
+      customerCurrency: customer?.currency,
     ),
   );
+}
+
+/// SAP's local currency — what SAP records documents in for customers set to
+/// "##" (all currencies), which is most of the client's (verified on real
+/// orders).
+const _localCurrency = 'BS';
+
+/// Currency label for the price field — DISPLAY ONLY (orders are sent without
+/// a currency; SAP applies its configured one). The price list's currency when
+/// the price comes from a list, else the customer's assigned currency, else
+/// [_localCurrency] for "##"/unset.
+String _priceCurrency(ItemPrice? listPrice, String? customerCurrency) {
+  final fromList = listPrice?.currency?.trim() ?? '';
+  if (fromList.isNotEmpty) return fromList;
+  final fromCustomer = customerCurrency?.trim() ?? '';
+  if (fromCustomer.isNotEmpty && fromCustomer != '##') return fromCustomer;
+  return _localCurrency;
 }
 
 class _LineConfigSheet extends StatefulWidget {
@@ -62,11 +80,16 @@ class _LineConfigSheet extends StatefulWidget {
   /// field for a new line. Null if no customer/price list is set.
   final int? priceListNum;
 
+  /// The cart customer's SAP currency ("##" = all currencies). Fallback for
+  /// the price label when the price doesn't come from a price list.
+  final String? customerCurrency;
+
   const _LineConfigSheet({
     required this.item,
     required this.itemRepository,
     this.existing,
     this.priceListNum,
+    this.customerCurrency,
   });
 
   @override
@@ -78,6 +101,9 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   late final TextEditingController _quantityController;
   late final TextEditingController _priceController;
   String? _priceError;
+
+  /// Currency shown next to the price (display only, see _priceCurrency).
+  late final String _currency;
 
   // Sell-by-liters mode only (see showLineConfigSheet).
   late final TextEditingController _litersController;
@@ -124,6 +150,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
         TextEditingController(
             text: resolvedPrice == null ? '' : _plainNumber(resolvedPrice));
     _priceListSource = e == null ? matchedPrice?.priceList : null;
+    _currency = _priceCurrency(matchedPrice, widget.customerCurrency);
     _warehouseCode = e?.warehouseCode ??
         (widget.item.warehouses.isNotEmpty
             ? widget.item.warehouses.first.warehouseCode
@@ -359,7 +386,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                           _priceListSource = null;
                         }),
                         decoration: InputDecoration(
-                          prefixText: 'Bs. ',
+                          prefixText: '${currencyLabel(_currency)} ',
                           prefixStyle: GoogleFonts.inter(
                             color: AppColors.text1,
                             fontWeight: FontWeight.w600,
@@ -388,7 +415,8 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                               style: GoogleFonts.inter(
                                   color: AppColors.text2, fontSize: 14)),
                           Text(
-                            formatMoney(_subtotal),
+                            '${currencyLabel(_currency)} '
+                            '${formatMoney(_subtotal)}',
                             style: GoogleFonts.plusJakartaSans(
                               color: AppColors.text1,
                               fontWeight: FontWeight.w800,
