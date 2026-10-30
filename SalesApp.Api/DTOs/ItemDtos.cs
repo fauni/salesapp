@@ -41,6 +41,7 @@ public class ItemPriceDto
 public class ItemWarehouseStockDto
 {
     public string WarehouseCode { get; set; } = string.Empty; // SAP WarehouseCode
+    public string? WarehouseName { get; set; }                // SAP Warehouses.WarehouseName (null if unresolved)
     public decimal InStock { get; set; }                      // SAP InStock
     public decimal Committed { get; set; }                    // SAP Committed
     public decimal Ordered { get; set; }                      // SAP Ordered

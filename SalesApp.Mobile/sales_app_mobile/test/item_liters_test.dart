@@ -29,6 +29,18 @@ void main() {
       const plain = Item(code: 'C', name: 'C');
       expect(plain.sellsByLiters, isFalse);
       expect(plain.quantityForLiters(10), isNull);
+      expect(plain.litersFor(10), isNull);
+    });
+  });
+
+  group('Item.litersFor (stock in liters)', () {
+    test('units x liters per unit', () {
+      expect(item.litersFor(358), 3580);
+      expect(item.litersFor(0), 0);
+    });
+
+    test('is the inverse of quantityForLiters', () {
+      expect(item.quantityForLiters(item.litersFor(3)!), 3);
     });
   });
 }

@@ -35,6 +35,10 @@ builder.Services.AddHttpClient<ISapServiceLayerClient, SapClient>("SapServiceLay
 // catalog names for the customer-detail endpoint only.
 builder.Services.AddScoped<ICatalogResolverService, CatalogResolverService>();
 
+// Singleton: in-memory map of all SAP warehouses (code -> name), refreshed
+// every few hours. Joins warehouse names into the item catalog.
+builder.Services.AddSingleton<IWarehouseCatalog, WarehouseCatalog>();
+
 // --- App services ---
 builder.Services.AddScoped<TokenService>();
 

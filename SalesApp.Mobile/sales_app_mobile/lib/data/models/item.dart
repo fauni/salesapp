@@ -64,6 +64,12 @@ class Item {
     return rounded;
   }
 
+  /// [units] of inventory expressed in liters (units × [litersPerUnit]) —
+  /// the inverse of [quantityForLiters]. Null unless sold by liters. Display
+  /// only: SAP's stock stays in inventory units.
+  double? litersFor(double units) =>
+      sellsByLiters ? units * litersPerUnit! : null;
+
   /// Sellable-now stock across all warehouses.
   double get totalAvailable =>
       warehouses.fold(0, (sum, w) => sum + w.available);
@@ -93,6 +99,10 @@ class ItemPrice {
 @JsonSerializable()
 class ItemWarehouseStock {
   final String warehouseCode;
+
+  /// SAP warehouse name, resolved by the backend. Null if it couldn't be
+  /// resolved — use [displayName].
+  final String? warehouseName;
   final double inStock;
   final double committed;
   final double ordered;
@@ -100,11 +110,21 @@ class ItemWarehouseStock {
 
   const ItemWarehouseStock({
     required this.warehouseCode,
+    this.warehouseName,
     this.inStock = 0,
     this.committed = 0,
     this.ordered = 0,
     this.available = 0,
   });
+
+  /// Name for display, falling back to the code.
+  String get displayName {
+    final name = warehouseName?.trim() ?? '';
+    return name.isEmpty ? warehouseCode : name;
+  }
+
+  /// Whether a name was resolved (so the code is worth showing beside it).
+  bool get hasName => displayName != warehouseCode;
 
   factory ItemWarehouseStock.fromJson(Map<String, dynamic> json) =>
       _$ItemWarehouseStockFromJson(json);

@@ -674,46 +674,146 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
               orElse: () => null,
             );
 
-    return InkWell(
-      onTap: () => _pickWarehouse(warehouses),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: AppColors.line),
+    final hasStock = (selected?.available ?? 0) > 0;
+    final radius = BorderRadius.circular(AppRadius.md);
+
+    // Material + InkWell so the ripple paints over the white card.
+    return Material(
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(
+          color: selected == null ? AppColors.line : AppColors.primary,
+          width: selected == null ? 1 : 1.5,
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: selected == null
-                  ? Text('Seleccionar almacén',
-                      style: GoogleFonts.inter(
-                          color: AppColors.text3, fontSize: 14))
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selected.warehouseCode,
-                          style: GoogleFonts.plusJakartaSans(
-                            color: AppColors.text1,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
+      ),
+      child: InkWell(
+        onTap: () => _pickWarehouse(warehouses),
+        borderRadius: radius,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+          child: Row(
+            children: [
+              // Leading tile: tinted when chosen, neutral while empty.
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: selected == null
+                      ? AppColors.lineSoft
+                      : AppColors.primaryTint,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: Icon(
+                  Icons.warehouse_outlined,
+                  size: 22,
+                  color: selected == null ? AppColors.text3 : AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: selected == null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Seleccionar almacén',
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AppColors.text1,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Disponible: ${formatQty(selected.available)}',
-                          style: GoogleFonts.inter(
-                              color: AppColors.text2, fontSize: 12),
-                        ),
-                      ],
-                    ),
-            ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.text2),
-          ],
+                          const SizedBox(height: 2),
+                          Text(
+                            '${warehouses.length} almacén(es) disponibles',
+                            style: GoogleFonts.inter(
+                                color: AppColors.text3, fontSize: 12),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            selected.displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AppColors.text1,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              if (selected.hasName)
+                                _pill(
+                                  selected.warehouseCode,
+                                  foreground: AppColors.text2,
+                                  background: AppColors.lineSoft,
+                                ),
+                              _pill(
+                                hasStock
+                                    ? 'Disponible: ${formatStock(selected.available, uom: widget.item.inventoryUom, liters: widget.item.litersFor(selected.available))}'
+                                    : 'Sin stock disponible',
+                                icon: hasStock
+                                    ? Icons.check_circle_rounded
+                                    : Icons.error_outline_rounded,
+                                foreground: hasStock
+                                    ? AppColors.positive
+                                    : AppColors.negative,
+                                background: hasStock
+                                    ? AppColors.positiveBg
+                                    : AppColors.negativeBg,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.text3),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// Small rounded label used under the warehouse name (code, stock state).
+  Widget _pill(
+    String text, {
+    required Color foreground,
+    required Color background,
+    IconData? icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: foreground),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            text,
+            style: GoogleFonts.inter(
+              color: foreground,
+              fontWeight: FontWeight.w600,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -723,6 +823,8 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
       context,
       warehouses: warehouses,
       selectedCode: _warehouseCode,
+      litersPerUnit: widget.item.litersPerUnit,
+      inventoryUom: widget.item.inventoryUom,
     );
     if (code != null) {
       setState(() => _warehouseCode = code);

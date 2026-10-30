@@ -14,7 +14,7 @@ class ItemsState extends Equatable {
 
   const ItemsState({
     this.query = '',
-    this.inStockOnly = false,
+    this.inStockOnly = true,
     this.status = ItemsStatus.loading,
     this.items = const [],
     this.page = 1,

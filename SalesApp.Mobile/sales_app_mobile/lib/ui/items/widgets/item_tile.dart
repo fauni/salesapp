@@ -62,7 +62,7 @@ class ItemTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${item.code} · disp. ${formatQty(item.totalAvailable)}',
+                    '${item.code} · disp. ${formatStock(item.totalAvailable, uom: item.inventoryUom, liters: item.litersFor(item.totalAvailable))}',
                     style: GoogleFonts.inter(
                         color: AppColors.text2, fontSize: 13),
                   ),

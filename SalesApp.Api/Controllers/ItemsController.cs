@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SalesApp.Api.DTOs;
 using SalesApp.Core.Interfaces;
+using SalesApp.Infrastructure.Catalog;
 
 namespace SalesApp.Api.Controllers;
 
@@ -16,6 +17,7 @@ namespace SalesApp.Api.Controllers;
 public class ItemsController : ControllerBase
 {
     private readonly ISapServiceLayerClient _sapClient;
+    private readonly IWarehouseCatalog _warehouseCatalog;
 
     // Nested collections (ItemPrices / ItemWarehouseInfoCollection) must be in the
     // $select so SAP returns them inline — that's how we get price and stock.
@@ -29,7 +31,11 @@ public class ItemsController : ControllerBase
     // to that cap so $top never silently returns fewer rows than TotalCount implies.
     private const int MaxPageSize = 20;
 
-    public ItemsController(ISapServiceLayerClient sapClient) => _sapClient = sapClient;
+    public ItemsController(ISapServiceLayerClient sapClient, IWarehouseCatalog warehouseCatalog)
+    {
+        _sapClient = sapClient;
+        _warehouseCatalog = warehouseCatalog;
+    }
 
     // GET /api/items?search=&category=&priceList=&inStockOnly=&page=&pageSize=
     [HttpGet]
@@ -71,13 +77,15 @@ public class ItemsController : ControllerBase
             query += $"&$filter={Uri.EscapeDataString(string.Join(" and ", filters))}";
 
         var json = await _sapClient.GetAsync(query, ct);
+        // Cached in memory (one SAP read every few hours), not per item.
+        var warehouses = await _warehouseCatalog.GetAllAsync(ct);
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
         var items = root.GetProperty("value")
             .EnumerateArray()
-            .Select(e => MapItem(e, priceList))
+            .Select(e => MapItem(e, priceList, warehouses))
             .ToList();
 
         return Ok(new PagedResult<ItemDto>
@@ -181,7 +189,8 @@ public class ItemsController : ControllerBase
         return Ok(result);
     }
 
-    private static ItemDto MapItem(JsonElement e, int? priceList)
+    private static ItemDto MapItem(
+        JsonElement e, int? priceList, IReadOnlyDictionary<string, WarehouseInfo> warehouseCatalog)
     {
         var dto = new ItemDto
         {
@@ -232,11 +241,19 @@ public class ItemsController : ControllerBase
         {
             foreach (var w in whs.EnumerateArray())
             {
+                var code = Str(w, "WarehouseCode") ?? string.Empty;
+                // Names come from the warehouse catalog. Inactive warehouses
+                // can't take new orders, so they're left out of the choices; a
+                // code missing from the catalog (e.g. names unavailable) stays.
+                warehouseCatalog.TryGetValue(code, out var info);
+                if (info?.Inactive == true) continue;
+
                 var inStock = Dec(w, "InStock") ?? 0m;
                 var committed = Dec(w, "Committed") ?? 0m;
                 dto.Warehouses.Add(new ItemWarehouseStockDto
                 {
-                    WarehouseCode = Str(w, "WarehouseCode") ?? string.Empty,
+                    WarehouseCode = code,
+                    WarehouseName = info?.Name,
                     InStock = inStock,
                     Committed = committed,
                     Ordered = Dec(w, "Ordered") ?? 0m,

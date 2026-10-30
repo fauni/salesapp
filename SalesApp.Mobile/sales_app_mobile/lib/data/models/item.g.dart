@@ -55,6 +55,7 @@ Map<String, dynamic> _$ItemPriceToJson(ItemPrice instance) => <String, dynamic>{
 ItemWarehouseStock _$ItemWarehouseStockFromJson(Map<String, dynamic> json) =>
     ItemWarehouseStock(
       warehouseCode: json['warehouseCode'] as String,
+      warehouseName: json['warehouseName'] as String?,
       inStock: (json['inStock'] as num?)?.toDouble() ?? 0,
       committed: (json['committed'] as num?)?.toDouble() ?? 0,
       ordered: (json['ordered'] as num?)?.toDouble() ?? 0,
@@ -64,6 +65,7 @@ ItemWarehouseStock _$ItemWarehouseStockFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$ItemWarehouseStockToJson(ItemWarehouseStock instance) =>
     <String, dynamic>{
       'warehouseCode': instance.warehouseCode,
+      'warehouseName': instance.warehouseName,
       'inStock': instance.inStock,
       'committed': instance.committed,
       'ordered': instance.ordered,
