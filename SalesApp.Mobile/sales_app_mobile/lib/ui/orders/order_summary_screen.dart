@@ -54,9 +54,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   // defaults below) — the cart only holds the basic Customer.
   bool _loadingDetail = false;
 
-  // Salesperson for the order. Defaults to the one assigned to the customer
-  // (from the detail), but the rep can pick another.
+  // Salesperson for the order: the one assigned to the customer (from the
+  // detail), or the source order's when duplicating — those are locked. Only
+  // when neither has one can the rep pick it.
   SalesPerson? _salesPerson;
+  bool _salesPersonLocked = false;
 
   // Optional SAP project tagged on the order.
   Project? _project;
@@ -94,6 +96,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         code: source.salesPersonCode!,
         name: source.salesPersonName!,
       );
+      _salesPersonLocked = true;
     }
 
     if (source.paymentTermsGroupCode != null &&
@@ -153,9 +156,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       if (!mounted) return;
       setState(() {
         _loadingDetail = false;
-        // Preselect the customer's assigned salesperson (unless the rep already
-        // picked one, or the source order already set one). Needs both a code
-        // and a resolved name to show.
+        // Use the customer's assigned salesperson (unless the source order
+        // already set one). Needs both a code and a resolved name to show.
         if (_salesPerson == null &&
             detail.salesPersonCode != null &&
             detail.salesPersonCode! > 0 &&
@@ -164,6 +166,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             code: detail.salesPersonCode!,
             name: detail.salesPersonName!,
           );
+          _salesPersonLocked = true;
         }
         // Same default-unless-already-set pattern for payment terms.
         if (_paymentTerms == null &&
@@ -383,8 +386,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Locked when it comes from the customer (or the source order,
+              // when duplicating); pickable only if neither assigned one.
               InkWell(
-                onTap: _pickSalesperson,
+                onTap: _loadingDetail || _salesPersonLocked
+                    ? null
+                    : _pickSalesperson,
                 child: InputDecorator(
                   decoration: InputDecoration(
                     labelText: 'Empleado de ventas',
@@ -399,12 +406,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   CircularProgressIndicator(strokeWidth: 2),
                             ),
                           )
-                        : const Icon(Icons.chevron_right_rounded),
+                        : _salesPersonLocked
+                            ? const Icon(Icons.lock_outline_rounded,
+                                size: 18, color: AppColors.text3)
+                            : const Icon(Icons.chevron_right_rounded),
                   ),
                   child: Text(
                     _salesPerson != null
                         ? '${_salesPerson!.name} (${_salesPerson!.code})'
-                        : 'Seleccionar empleado',
+                        : (_loadingDetail
+                            ? 'Cargando…'
+                            : 'Seleccionar empleado'),
                     style: TextStyle(
                         color: _salesPerson != null
                             ? AppColors.text1
