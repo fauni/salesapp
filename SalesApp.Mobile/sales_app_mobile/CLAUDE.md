@@ -162,6 +162,11 @@ borrador se pide con `?status=…&draft=true` (`Order.detailPath`).
 7. `pending` / `rejected` / aprobado-por-generar salen del estado de la solicitud de
    autorización de SAP (`ApprovalRequests`). Generar la orden de un borrador
    autorizado es la única acción permitida sobre la autorización (no aprobar/rechazar).
+8. **Ítems vendidos por litros: el precio se carga POR LITRO** (observación del
+   cliente 2026-10-30: "precio por litros o kilos, no envase"). La línea del carrito
+   y SAP siguen con precio por envase (`unitPrice = precio/L × litros por envase`);
+   la lista de precios de SAP está por envase y la hoja la divide para mostrarla.
+   **Kilos: pendiente** — falta confirmar cómo están cargados en SAP.
 
 ## Primer milestone (empezar por acá)
 

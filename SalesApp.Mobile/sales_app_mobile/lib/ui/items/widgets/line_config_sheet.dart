@@ -121,6 +121,13 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   /// user edits the price by hand, since the hint would no longer be accurate.
   int? _priceListSource;
 
+  /// Sell-by-liters only: the price field holds the price PER LITER, but the
+  /// cart line / SAP keep the price per inventory unit (container). This is
+  /// the prefilled per-unit price, used as-is until the user edits the field
+  /// so the per-liter rounding shown never alters it.
+  double? _prefilledUnitPrice;
+  bool _priceEdited = false;
+
   // Sales UoM options, loaded on demand when the sheet opens.
   List<ItemUnitOfMeasure> _uoms = const [];
   String? _uomCode; // selected UoM code
@@ -145,10 +152,15 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     // Editing an existing line keeps its saved price untouched; a new line
     // prefills from the customer's assigned price list when there's a match.
     final matchedPrice = widget.item.priceFor(widget.priceListNum);
+    // Per inventory unit (container) — that's how SAP's price list and the
+    // cart line store it. Items sold by liters show it per liter instead.
     final resolvedPrice = e?.unitPrice ?? matchedPrice?.price;
-    _priceController =
-        TextEditingController(
-            text: resolvedPrice == null ? '' : _plainNumber(resolvedPrice));
+    _prefilledUnitPrice = resolvedPrice;
+    final shownPrice = resolvedPrice != null && _byLiters
+        ? _round(resolvedPrice / widget.item.litersPerUnit!, 4)
+        : resolvedPrice;
+    _priceController = TextEditingController(
+        text: shownPrice == null ? '' : _plainNumber(shownPrice));
     _priceListSource = e == null ? matchedPrice?.priceList : null;
     _currency = _priceCurrency(matchedPrice, widget.customerCurrency);
     _warehouseCode = e?.warehouseCode ??
@@ -182,10 +194,16 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     });
   }
 
-  /// Number as typed-back text: no grouping separators (formatQty's "1,000"
-  /// would re-parse as 1.0), no trailing ".0".
+  /// Number as typed-back text for editable fields: no grouping separators
+  /// (formatQty's "1,000" would re-parse as 1.0, since "," is read as the
+  /// decimal separator), no trailing ".0".
   static String _plainNumber(double v) =>
       v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  /// Rounds to [decimals] places, dropping binary float noise
+  /// (12.35 * 20 = 247.00000000000003).
+  static double _round(double v, int decimals) =>
+      double.parse(v.toStringAsFixed(decimals));
 
   Future<void> _loadUoms() async {
     setState(() {
@@ -248,7 +266,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   void _bump(double delta) {
     setState(() {
       _quantity = (_quantity + delta).clamp(1, 999999);
-      _quantityController.text = formatQty(_quantity);
+      _quantityController.text = _plainNumber(_quantity);
     });
   }
 
@@ -269,11 +287,26 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     final clamped = _quantity < 1 ? 1.0 : _quantity.clamp(1, 999999);
     setState(() {
       _quantity = clamped.toDouble();
-      _quantityController.text = formatQty(_quantity);
+      _quantityController.text = _plainNumber(_quantity);
     });
   }
 
-  double? get _unitPrice => double.tryParse(_priceController.text.trim());
+  /// What the price field holds: per unit, or per liter for items sold by
+  /// liters. Accepts a comma as decimal separator ("12,5").
+  double? get _typedPrice =>
+      double.tryParse(_priceController.text.trim().replaceAll(',', '.'));
+
+  /// Price per inventory unit (container) — what the cart line and SAP get.
+  /// Sold by liters: price per liter × liters per unit.
+  double? get _unitPrice {
+    if (!_byLiters) return _typedPrice;
+    if (!_priceEdited) return _prefilledUnitPrice;
+    final perLiter = _typedPrice;
+    return perLiter == null
+        ? null
+        : _round(perLiter * widget.item.litersPerUnit!, 6);
+  }
+
   double get _subtotal => _quantity * (_unitPrice ?? 0);
 
   void _save() {
@@ -370,7 +403,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                         _warehouseSelector(warehouses),
                         const SizedBox(height: 16),
                       ],
-                      _label('Precio unitario'),
+                      _label(_byLiters ? 'Precio por litro' : 'Precio unitario'),
                       const SizedBox(height: 6),
                       TextField(
                         controller: _priceController,
@@ -384,6 +417,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                         onChanged: (_) => setState(() {
                           _priceError = null;
                           _priceListSource = null;
+                          _priceEdited = true;
                         }),
                         decoration: InputDecoration(
                           prefixText: '${currencyLabel(_currency)} ',
@@ -391,10 +425,21 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
                             color: AppColors.text1,
                             fontWeight: FontWeight.w600,
                           ),
+                          suffixText: _byLiters ? '/ L' : null,
                           hintText: '0.00',
                           errorText: _priceError,
                         ),
                       ),
+                      if (_byLiters && (_unitPrice ?? 0) > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Equivale a ${currencyLabel(_currency)} '
+                          '${formatMoney(_unitPrice!)} por '
+                          '${widget.item.inventoryUom ?? 'unidad'}',
+                          style: GoogleFonts.inter(
+                              color: AppColors.text2, fontSize: 12),
+                        ),
+                      ],
                       if (_priceListSource != null) ...[
                         const SizedBox(height: 4),
                         Text(

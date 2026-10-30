@@ -221,8 +221,18 @@ class _LineRow extends StatelessWidget {
     final liters = line.quantityInLiters != null
         ? ' (${formatQty(line.quantityInLiters!)} L)'
         : '';
-    final priceText =
-        line.unitPrice != null ? ' × ${formatMoney(line.unitPrice!)}' : '';
+    // Items sold by liters are priced per liter (SAP stores it per container:
+    // unit price × units / liters gives it back).
+    final perLiter = line.unitPrice != null &&
+            line.quantityInLiters != null &&
+            line.quantityInLiters! > 0
+        ? line.unitPrice! * line.quantity / line.quantityInLiters!
+        : null;
+    final priceText = perLiter != null
+        ? ' × ${formatMoney(perLiter)}/L'
+        : line.unitPrice != null
+            ? ' × ${formatMoney(line.unitPrice!)}'
+            : '';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
