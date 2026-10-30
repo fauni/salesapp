@@ -55,6 +55,8 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "CustomerCode is required." });
         if (request.Lines.Count == 0)
             return BadRequest(new { message = "An order needs at least one line." });
+        if (!PickupByValues.IsValid(request.PickupBy))
+            return BadRequest(new { message = "PickupBy is required: C, V or T." });
 
         var warehouseError = await ValidateWarehousesAsync(request.Lines, ct);
         if (warehouseError != null) return BadRequest(new { message = warehouseError });
@@ -541,6 +543,12 @@ public class OrdersController : ControllerBase
             body["U_SL_Ubicacion"] = string.Format(CultureInfo.InvariantCulture,
                 "{0},{1}", request.Latitude.Value, request.Longitude.Value);
         }
+
+        // Custom SAP field (UDF on Orders): who picks the order up (C/V/T).
+        // Required on create (validated in Create); "Duplicar pedido" doesn't
+        // carry it, so it's omitted there.
+        if (!string.IsNullOrWhiteSpace(request.PickupBy))
+            body["U_SL_Recoge"] = request.PickupBy;
 
         return body;
     }

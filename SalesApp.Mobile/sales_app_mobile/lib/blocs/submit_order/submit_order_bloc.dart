@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/models/cart_line.dart';
 import '../../data/models/order.dart';
+import '../../data/models/pickup_by.dart';
 import '../../data/network/api_error.dart';
 import '../../data/repositories/order_repository.dart';
 
@@ -31,6 +32,7 @@ class SubmitOrderBloc extends Bloc<SubmitOrderEvent, SubmitOrderState> {
         dueDate: event.dueDate,
         comments: event.comments,
         paymentTermsGroupCode: event.paymentTermsGroupCode,
+        pickupBy: event.pickupBy,
         lines: event.lines,
         latitude: event.latitude,
         longitude: event.longitude,

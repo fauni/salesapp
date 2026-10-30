@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../models/cart_line.dart';
 import '../models/order.dart';
+import '../models/pickup_by.dart';
 import '../network/api_error.dart';
 
 class OrderRepository {
@@ -89,6 +90,7 @@ class OrderRepository {
     DateTime? dueDate,
     String? comments,
     int? paymentTermsGroupCode,
+    required PickupBy pickupBy,
     required List<CartLine> lines,
     double? latitude,
     double? longitude,
@@ -101,6 +103,7 @@ class OrderRepository {
         'dueDate': ?dueDate?.toIso8601String(),
         if (comments != null && comments.isNotEmpty) 'comments': comments,
         'paymentTermsGroupCode': ?paymentTermsGroupCode,
+        'pickupBy': pickupBy.code,
         'latitude': ?latitude,
         'longitude': ?longitude,
         'lines': [

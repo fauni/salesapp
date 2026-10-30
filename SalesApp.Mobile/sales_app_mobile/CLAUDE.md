@@ -112,6 +112,8 @@ request. Un `401` real → limpiar token y mandar a login.
   `{ customerCode, salesPersonCode?, series?, dueDate?, comments?,
      lines: [ { itemCode, quantity, salesUnitOfMeasure?, unitPrice?, warehouseCode? } ] }`
   → 201 `OrderDto` · 400 si falta customerCode o no hay líneas.
+  - `pickupBy` **obligatorio**: `"C"` Cliente · `"V"` Vendedor · `"T"` Transporte
+    tercerizado → UDF de cabecera SAP `U_SL_Recoge` (400 si falta o es inválido).
 - `GET /api/orders?status=pending|approved|rejected` → 200 `[ OrderDto ]`
 - `GET /api/orders/{id}` → 200 `OrderDto` · 404 si no existe.
 - `GET /api/orders/{id}/pdf` → **501 (no implementado aún — NO construir esa pantalla).**

@@ -19,6 +19,10 @@ public class CreateOrderRequest
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 
+    // Who picks the order up: "C" = Cliente, "V" = Vendedor, "T" = Transporte
+    // tercerizado (see PickupByValues). -> SAP header UDF U_SL_Recoge.
+    public string? PickupBy { get; set; }
+
     public List<CreateOrderLineRequest> Lines { get; set; } = new();
 }
 
@@ -39,6 +43,17 @@ public class CreateOrderLineRequest
     public string? WarehouseCode { get; set; }
     public string? ProjectCode { get; set; }                 // -> SAP line ProjectCode
     public string? BranchCode { get; set; }                  // "Sucursal" -> SAP line CostingCode2 (DistributionRules.FactorCode)
+}
+
+// Valid values of the SAP UDF U_SL_Recoge (must match its valid values in SAP).
+public static class PickupByValues
+{
+    public const string Customer = "C";
+    public const string Salesperson = "V";
+    public const string ThirdPartyTransport = "T";
+
+    public static bool IsValid(string? value) =>
+        value is Customer or Salesperson or ThirdPartyTransport;
 }
 
 // --- Read (RF-12, RF-16) ---

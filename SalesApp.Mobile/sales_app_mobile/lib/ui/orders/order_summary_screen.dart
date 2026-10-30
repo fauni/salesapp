@@ -12,6 +12,7 @@ import '../../data/models/branch.dart';
 import '../../data/models/cart_line.dart';
 import '../../data/models/order.dart';
 import '../../data/models/payment_terms.dart';
+import '../../data/models/pickup_by.dart';
 import '../../data/models/project.dart';
 import '../../data/models/sales_person.dart';
 import '../../data/network/api_error.dart';
@@ -47,6 +48,10 @@ class OrderSummaryScreen extends StatefulWidget {
 class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   DateTime? _dueDate;
   bool _dueDateMissing = false;
+
+  // Who picks the order up (SAP UDF U_SL_Recoge). Required, no default.
+  PickupBy? _pickupBy;
+  bool _pickupByMissing = false;
   bool _paymentTermsMissing = false;
   final _commentsController = TextEditingController();
 
@@ -192,11 +197,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Future<void> _submit(CartState cart) async {
-    // Due date and payment terms are required.
-    if (_dueDate == null || _paymentTerms == null) {
+    // Due date, payment terms and who picks up are required.
+    final pickupBy = _pickupBy;
+    if (_dueDate == null || _paymentTerms == null || pickupBy == null) {
       setState(() {
         _dueDateMissing = _dueDate == null;
         _paymentTermsMissing = _paymentTerms == null;
+        _pickupByMissing = pickupBy == null;
       });
       return;
     }
@@ -213,6 +220,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       dueDate: _dueDate,
       comments: _commentsController.text.trim(),
       paymentTermsGroupCode: _paymentTerms?.code,
+      pickupBy: pickupBy,
       lines: cart.lines,
       latitude: location?.$1,
       longitude: location?.$2,
@@ -518,6 +526,25 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                             : AppColors.text3),
                   ),
                 ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<PickupBy>(
+                initialValue: _pickupBy,
+                decoration: InputDecoration(
+                  labelText: 'Recoge',
+                  prefixIcon: const Icon(Icons.local_shipping_outlined),
+                  errorText:
+                      _pickupByMissing ? 'Seleccioná quién recoge' : null,
+                ),
+                hint: const Text('Seleccionar quién recoge'),
+                items: [
+                  for (final p in PickupBy.values)
+                    DropdownMenuItem(value: p, child: Text(p.label)),
+                ],
+                onChanged: (v) => setState(() {
+                  _pickupBy = v;
+                  _pickupByMissing = false;
+                }),
               ),
               const SizedBox(height: 12),
               TextField(

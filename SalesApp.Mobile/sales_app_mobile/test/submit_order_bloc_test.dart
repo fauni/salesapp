@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sales_app_mobile/blocs/submit_order/submit_order_bloc.dart';
 import 'package:sales_app_mobile/data/models/cart_line.dart';
 import 'package:sales_app_mobile/data/models/order.dart';
+import 'package:sales_app_mobile/data/models/pickup_by.dart';
 import 'package:sales_app_mobile/data/network/api_error.dart';
 import 'package:sales_app_mobile/data/repositories/order_repository.dart';
 
@@ -18,6 +19,7 @@ class _FakeRepo extends OrderRepository {
     DateTime? dueDate,
     String? comments,
     int? paymentTermsGroupCode,
+    required PickupBy pickupBy,
     required List<CartLine> lines,
     double? latitude,
     double? longitude,
@@ -27,6 +29,7 @@ class _FakeRepo extends OrderRepository {
 
 const _event = OrderSubmitted(
   customerCode: 'C1',
+  pickupBy: PickupBy.customer,
   lines: [CartLine(itemCode: 'A', itemName: 'Item A', quantity: 1)],
 );
 
