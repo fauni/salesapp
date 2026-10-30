@@ -21,6 +21,7 @@ public class OrdersController : ControllerBase
 {
     private readonly ISapServiceLayerClient _sapClient;
     private readonly ICatalogResolverService _catalogResolver;
+    private readonly IAllowedWarehouses _allowedWarehouses;
 
     // Same field set for Orders and Drafts (Drafts mirror the document schema).
     // PaymentGroupCode is the payment-terms group — defaults from the customer
@@ -37,10 +38,13 @@ public class OrdersController : ControllerBase
     private const string SalesOrderObjectCode = "17";
 
     public OrdersController(
-        ISapServiceLayerClient sapClient, ICatalogResolverService catalogResolver)
+        ISapServiceLayerClient sapClient,
+        ICatalogResolverService catalogResolver,
+        IAllowedWarehouses allowedWarehouses)
     {
         _sapClient = sapClient;
         _catalogResolver = catalogResolver;
+        _allowedWarehouses = allowedWarehouses;
     }
 
     // POST /api/orders  (RF-06..RF-10)
@@ -51,6 +55,9 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "CustomerCode is required." });
         if (request.Lines.Count == 0)
             return BadRequest(new { message = "An order needs at least one line." });
+
+        var warehouseError = await ValidateWarehousesAsync(request.Lines, ct);
+        if (warehouseError != null) return BadRequest(new { message = warehouseError });
 
         // NOTE: no credit-limit check here — intentionally out of scope.
         // SAP validation errors surface via SapExceptionFilter (400/502).
@@ -244,11 +251,33 @@ public class OrdersController : ControllerBase
             }).ToList()
         };
 
+        // The source order may use a warehouse that has since been disallowed.
+        var warehouseError = await ValidateWarehousesAsync(clone.Lines, ct);
+        if (warehouseError != null) return BadRequest(new { message = warehouseError });
+
         var created = await CreateInSapAsync(clone, ct);
         return CreatedResult(created);
     }
 
     // --- helpers ---
+
+    // Lines may only use globally allowed warehouses (AllowedWarehouses table).
+    // A line without a warehouse is left to SAP's default. Returns the error
+    // message, or null if every line is fine.
+    private async Task<string?> ValidateWarehousesAsync(
+        IEnumerable<CreateOrderLineRequest> lines, CancellationToken ct)
+    {
+        var allowed = await _allowedWarehouses.GetCodesAsync(ct);
+        var invalid = lines
+            .Select(l => l.WarehouseCode)
+            .Where(code => !string.IsNullOrWhiteSpace(code) && !allowed.Contains(code))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return invalid.Count == 0
+            ? null
+            : $"Warehouse not allowed: {string.Join(", ", invalid)}.";
+    }
 
     // SAP error code Service Layer returns when an Approval Procedure turned
     // the new Order into a Draft: the draft IS created, but SL then tries to

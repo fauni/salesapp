@@ -13,6 +13,7 @@ import 'blocs/orders/orders_bloc.dart';
 import 'blocs/submit_order/submit_order_bloc.dart';
 import 'blocs/users/user_form_bloc.dart';
 import 'blocs/users/users_bloc.dart';
+import 'blocs/warehouses/warehouses_bloc.dart';
 import 'core/go_router_refresh_stream.dart';
 import 'core/page_transition.dart';
 import 'data/models/app_user.dart';
@@ -22,6 +23,7 @@ import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
 import 'data/repositories/user_repository.dart';
+import 'data/repositories/warehouse_repository.dart';
 import 'ui/customers/client_picker_screen.dart';
 import 'ui/customers/customer_detail_screen.dart';
 import 'ui/customers/customers_screen.dart';
@@ -34,6 +36,7 @@ import 'ui/profile/profile_screen.dart';
 import 'ui/splash/splash_screen.dart';
 import 'ui/users/user_form_screen.dart';
 import 'ui/users/users_screen.dart';
+import 'ui/warehouses/warehouses_screen.dart';
 import 'ui/widgets/home_shell.dart';
 
 /// Auth-gated router. `redirect` reads the current AuthBloc state and keeps the
@@ -277,6 +280,19 @@ GoRouter buildRouter(AuthBloc authBloc) {
             ),
           );
         },
+      ),
+      // Admin-only "Almacenes" — same gating as "Usuarios" (drawer item hidden,
+      // WarehousesController is [Authorize(Roles = "Administrator")]).
+      GoRoute(
+        path: '/warehouses',
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                WarehousesBloc(context.read<WarehouseRepository>())
+                  ..add(const WarehousesStarted()),
+            child: const WarehousesScreen(),
+          ),
+        ),
       ),
     ],
   );

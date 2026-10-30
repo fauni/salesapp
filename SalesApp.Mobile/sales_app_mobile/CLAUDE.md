@@ -97,6 +97,15 @@ request. Un `401` real → limpiar token y mandar a login.
     catálogo no muestra precio derivado de lista. El backend sigue soportando el
     parámetro para retomarlo más adelante.
 
+### Warehouses (solo Administrator)
+
+- `GET /api/warehouses` → 200 `[ { code, name, allowed } ]` (todos los almacenes de SAP).
+- `PUT /api/warehouses/allowed` — body `{ codes: [] }` reemplaza la lista completa
+  → 200 mismo shape que el GET.
+- Lista **global** (igual para todos los usuarios). `GET /api/items` solo devuelve
+  en `warehouses[]` los almacenes permitidos; **lista vacía = ninguno**.
+  Pantalla "Almacenes" en el drawer (`/warehouses`), visible solo para admins.
+
 ### Orders
 
 - `POST /api/orders` — body:

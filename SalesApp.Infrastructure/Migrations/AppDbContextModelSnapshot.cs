@@ -41,6 +41,30 @@ namespace SalesApp.Infrastructure.Migrations
                     b.ToTable("DataProtectionKeys");
                 });
 
+            modelBuilder.Entity("SalesApp.Core.Entities.AllowedWarehouse", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SapWarehouseCode")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SapWarehouseCode")
+                        .IsUnique();
+
+                    b.ToTable("AllowedWarehouses");
+                });
+
             modelBuilder.Entity("SalesApp.Core.Entities.AuditLog", b =>
                 {
                     b.Property<int>("Id")

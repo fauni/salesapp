@@ -39,6 +39,10 @@ builder.Services.AddScoped<ICatalogResolverService, CatalogResolverService>();
 // every few hours. Joins warehouse names into the item catalog.
 builder.Services.AddSingleton<IWarehouseCatalog, WarehouseCatalog>();
 
+// Singleton: in-memory copy of the AllowedWarehouses table (global list of
+// warehouses orders may use). Filters item stock + validates order lines.
+builder.Services.AddSingleton<IAllowedWarehouses, AllowedWarehouses>();
+
 // --- App services ---
 builder.Services.AddScoped<TokenService>();
 

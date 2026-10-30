@@ -18,6 +18,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<Parameter> Parameters => Set<Parameter>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<CatalogCacheEntry> CatalogCache => Set<CatalogCacheEntry>();
+    public DbSet<AllowedWarehouse> AllowedWarehouses => Set<AllowedWarehouse>();
     public DbSet<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey> DataProtectionKeys => Set<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -89,6 +90,13 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(c => c.Name).HasMaxLength(200).IsRequired();
             // One cached name per (type, code); the resolver upserts on this key.
             entity.HasIndex(c => new { c.CatalogType, c.Code }).IsUnique();
+        });
+
+        modelBuilder.Entity<AllowedWarehouse>(entity =>
+        {
+            // SAP WhsCode is nvarchar(8).
+            entity.Property(w => w.SapWarehouseCode).HasMaxLength(8).IsRequired();
+            entity.HasIndex(w => w.SapWarehouseCode).IsUnique();
         });
 
         // Seed default roles

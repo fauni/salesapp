@@ -18,6 +18,7 @@ public class ItemsController : ControllerBase
 {
     private readonly ISapServiceLayerClient _sapClient;
     private readonly IWarehouseCatalog _warehouseCatalog;
+    private readonly IAllowedWarehouses _allowedWarehouses;
 
     // Nested collections (ItemPrices / ItemWarehouseInfoCollection) must be in the
     // $select so SAP returns them inline — that's how we get price and stock.
@@ -31,10 +32,14 @@ public class ItemsController : ControllerBase
     // to that cap so $top never silently returns fewer rows than TotalCount implies.
     private const int MaxPageSize = 20;
 
-    public ItemsController(ISapServiceLayerClient sapClient, IWarehouseCatalog warehouseCatalog)
+    public ItemsController(
+        ISapServiceLayerClient sapClient,
+        IWarehouseCatalog warehouseCatalog,
+        IAllowedWarehouses allowedWarehouses)
     {
         _sapClient = sapClient;
         _warehouseCatalog = warehouseCatalog;
+        _allowedWarehouses = allowedWarehouses;
     }
 
     // GET /api/items?search=&category=&priceList=&inStockOnly=&page=&pageSize=
@@ -79,13 +84,14 @@ public class ItemsController : ControllerBase
         var json = await _sapClient.GetAsync(query, ct);
         // Cached in memory (one SAP read every few hours), not per item.
         var warehouses = await _warehouseCatalog.GetAllAsync(ct);
+        var allowed = await _allowedWarehouses.GetCodesAsync(ct);
 
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
         var items = root.GetProperty("value")
             .EnumerateArray()
-            .Select(e => MapItem(e, priceList, warehouses))
+            .Select(e => MapItem(e, priceList, warehouses, allowed))
             .ToList();
 
         return Ok(new PagedResult<ItemDto>
@@ -190,7 +196,10 @@ public class ItemsController : ControllerBase
     }
 
     private static ItemDto MapItem(
-        JsonElement e, int? priceList, IReadOnlyDictionary<string, WarehouseInfo> warehouseCatalog)
+        JsonElement e,
+        int? priceList,
+        IReadOnlyDictionary<string, WarehouseInfo> warehouseCatalog,
+        IReadOnlySet<string> allowedWarehouses)
     {
         var dto = new ItemDto
         {
@@ -242,6 +251,10 @@ public class ItemsController : ControllerBase
             foreach (var w in whs.EnumerateArray())
             {
                 var code = Str(w, "WarehouseCode") ?? string.Empty;
+                // Only the globally allowed warehouses (AllowedWarehouses
+                // table) are offered; an empty list allows none.
+                if (!allowedWarehouses.Contains(code)) continue;
+
                 // Names come from the warehouse catalog. Inactive warehouses
                 // can't take new orders, so they're left out of the choices; a
                 // code missing from the catalog (e.g. names unavailable) stays.

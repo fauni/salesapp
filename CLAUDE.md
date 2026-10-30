@@ -63,6 +63,12 @@ and the one place worth decoupling for testing.
 - **Numbering series are SAP's**, we only store which SAP series a user is
   allowed to use (`UserSalesSeries.SapSeriesId`) — never replicate SAP's
   series catalog locally.
+- **Allowed warehouses are a global list** (`AllowedWarehouses` table, same
+  for every user, admin-managed via `/api/warehouses`). The item catalog only
+  returns stock for allowed warehouses and `POST /api/orders` rejects lines
+  using any other. **An empty list allows NONE** (client decision 2026-10-30).
+  The catalog's "in stock only" filter still counts stock in all warehouses
+  (SAP OData limitation) — accepted for now.
 - Order lines carry **only the sales unit of measure** (`SalesUnitOfMeasure`
   → SAP line `UoMCode`). The TFE (electronic invoicing) UoM was **dropped**
   from order lines on 2026-08-08 (client decision, supersedes the earlier

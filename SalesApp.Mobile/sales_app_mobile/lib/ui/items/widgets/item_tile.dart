@@ -8,7 +8,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/pressable_scale.dart';
 
-/// Item row for the catalog. Shows name, code and available stock. When the
+/// Item row for the catalog. Shows name and code. When the
 /// item is already in the order, shows its quantity chip instead of an add icon.
 class ItemTile extends StatelessWidget {
   final Item item;
@@ -62,7 +62,7 @@ class ItemTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${item.code} · disp. ${formatStock(item.totalAvailable, uom: item.inventoryUom, liters: item.litersFor(item.totalAvailable))}',
+                    item.code,
                     style: GoogleFonts.inter(
                         color: AppColors.text2, fontSize: 13),
                   ),

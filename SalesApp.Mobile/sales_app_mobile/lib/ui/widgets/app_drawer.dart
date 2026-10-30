@@ -58,6 +58,13 @@ class AppDrawer extends StatelessWidget {
                   selected: location == '/users',
                   onTap: () => _go(context, '/users'),
                 ),
+              if (auth.roles.contains('Administrator'))
+                _DrawerItem(
+                  icon: Icons.warehouse_rounded,
+                  label: 'Almacenes',
+                  selected: location == '/warehouses',
+                  onTap: () => _go(context, '/warehouses'),
+                ),
               _DrawerItem(
                 icon: Icons.person_rounded,
                 label: 'Perfil',

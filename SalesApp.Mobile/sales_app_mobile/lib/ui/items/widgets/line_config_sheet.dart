@@ -135,7 +135,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     final e = widget.existing;
     _quantity = e?.quantity ?? (_byLiters ? 0 : 1);
     _quantityController =
-        TextEditingController(text: formatQty(_quantity));
+        TextEditingController(text: _plainNumber(_quantity));
     // Lines saved before this field existed have no liters: derive them.
     _liters = _byLiters && e != null
         ? e.quantityInLiters ?? e.quantity * widget.item.litersPerUnit!

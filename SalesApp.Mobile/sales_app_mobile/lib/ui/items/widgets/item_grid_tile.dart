@@ -95,7 +95,7 @@ class ItemGridTile extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${item.code} · disp. ${formatStock(item.totalAvailable, uom: item.inventoryUom, liters: item.litersFor(item.totalAvailable))}',
+              item.code,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(color: AppColors.text2, fontSize: 12),

@@ -13,6 +13,7 @@ import 'data/repositories/payment_terms_repository.dart';
 import 'data/repositories/project_repository.dart';
 import 'data/repositories/salesperson_repository.dart';
 import 'data/repositories/user_repository.dart';
+import 'data/repositories/warehouse_repository.dart';
 import 'router.dart';
 import 'ui/theme/app_theme.dart';
 
@@ -61,6 +62,9 @@ class _SalesAppState extends State<SalesApp> {
         ),
         RepositoryProvider<UserRepository>(
           create: (_) => UserRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<WarehouseRepository>(
+          create: (_) => WarehouseRepository(dio: widget.dio),
         ),
       ],
       child: BlocProvider.value(
