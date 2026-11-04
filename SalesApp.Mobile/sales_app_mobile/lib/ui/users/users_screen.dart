@@ -112,9 +112,12 @@ class _UserTile extends StatelessWidget {
                             fontSize: 15)),
                     const SizedBox(height: 2),
                     Text(
-                      user.salesEmployeeCode != null
-                          ? '${user.roleName} · Vendedor ${user.salesEmployeeCode}'
-                          : user.roleName,
+                      [
+                        user.roleName,
+                        if (user.salesEmployeeCode != null)
+                          'Vendedor ${user.salesEmployeeCode}',
+                        'SAP: ${user.sapAccountName ?? 'cuenta técnica'}',
+                      ].join(' · '),
                       style: GoogleFonts.inter(
                           color: AppColors.text2, fontSize: 13),
                     ),

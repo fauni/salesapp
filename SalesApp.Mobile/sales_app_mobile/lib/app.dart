@@ -12,6 +12,7 @@ import 'data/repositories/order_repository.dart';
 import 'data/repositories/payment_terms_repository.dart';
 import 'data/repositories/project_repository.dart';
 import 'data/repositories/salesperson_repository.dart';
+import 'data/repositories/sap_account_repository.dart';
 import 'data/repositories/user_repository.dart';
 import 'data/repositories/warehouse_repository.dart';
 import 'router.dart';
@@ -62,6 +63,9 @@ class _SalesAppState extends State<SalesApp> {
         ),
         RepositoryProvider<UserRepository>(
           create: (_) => UserRepository(dio: widget.dio),
+        ),
+        RepositoryProvider<SapAccountRepository>(
+          create: (_) => SapAccountRepository(dio: widget.dio),
         ),
         RepositoryProvider<WarehouseRepository>(
           create: (_) => WarehouseRepository(dio: widget.dio),

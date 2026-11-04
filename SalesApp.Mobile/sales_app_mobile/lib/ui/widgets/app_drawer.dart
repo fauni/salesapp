@@ -60,6 +60,13 @@ class AppDrawer extends StatelessWidget {
                 ),
               if (auth.roles.contains('Administrator'))
                 _DrawerItem(
+                  icon: Icons.key_rounded,
+                  label: 'Usuarios SAP',
+                  selected: location == '/sap-accounts',
+                  onTap: () => _go(context, '/sap-accounts'),
+                ),
+              if (auth.roles.contains('Administrator'))
+                _DrawerItem(
                   icon: Icons.warehouse_rounded,
                   label: 'Almacenes',
                   selected: location == '/warehouses',

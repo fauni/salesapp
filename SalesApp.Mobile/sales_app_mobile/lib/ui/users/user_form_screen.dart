@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../blocs/users/user_form_bloc.dart';
 import '../../data/models/app_user.dart';
+import '../../data/models/sap_account.dart';
+import '../../data/repositories/sap_account_repository.dart';
 import '../widgets/app_scaffold.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/section_card.dart';
@@ -33,6 +35,16 @@ class _UserFormScreenState extends State<UserFormScreen> {
   late bool _isActive = widget.existing?.isActive ?? true;
   bool _obscurePassword = true;
 
+  /// null = technical account (server's default SAP user).
+  late int? _sapAccountId = widget.existing?.sapAccountId;
+  late final Future<List<SapAccount>> _sapAccounts;
+
+  @override
+  void initState() {
+    super.initState();
+    _sapAccounts = context.read<SapAccountRepository>().list();
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -50,6 +62,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
       bloc.add(UserFormUpdateSubmitted(
         id: widget.existing!.id,
         salesEmployeeCode: code.isEmpty ? null : code,
+        sapAccountId: _sapAccountId,
         roleId: _roleId,
         isActive: _isActive,
       ));
@@ -58,6 +71,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
         username: _usernameController.text.trim(),
         password: _passwordController.text,
         salesEmployeeCode: code.isEmpty ? null : code,
+        sapAccountId: _sapAccountId,
         roleId: _roleId,
         isActive: _isActive,
       ));
@@ -102,6 +116,52 @@ class _UserFormScreenState extends State<UserFormScreen> {
           id: widget.existing!.id,
           newPassword: newPassword,
         ));
+  }
+
+  /// SAP user the backend connects as for this user. Lists active accounts,
+  /// plus the currently assigned one even if it was deactivated since (so the
+  /// form doesn't silently drop it). Takes effect on the user's next login.
+  Widget _sapAccountField() {
+    return FutureBuilder<List<SapAccount>>(
+      future: _sapAccounts,
+      builder: (context, snapshot) {
+        final current = _sapAccountId;
+        final accounts = (snapshot.data ?? const <SapAccount>[])
+            .where((a) => a.isActive || a.id == current)
+            .toList();
+        // Assigned account not (yet) loaded — keep it selectable.
+        final missingCurrent =
+            current != null && !accounts.any((a) => a.id == current);
+        return DropdownButtonFormField<int?>(
+          initialValue: current,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: 'Usuario SAP',
+            prefixIcon: const Icon(Icons.key_outlined),
+            helperText: snapshot.hasError
+                ? 'No se pudieron cargar los usuarios SAP'
+                : 'Aplica en el próximo inicio de sesión del usuario',
+          ),
+          items: [
+            const DropdownMenuItem<int?>(
+                value: null, child: Text('Cuenta técnica (por defecto)')),
+            for (final a in accounts)
+              DropdownMenuItem<int?>(
+                value: a.id,
+                child: Text(a.isActive
+                    ? '${a.name} (${a.username})'
+                    : '${a.name} (inactivo)'),
+              ),
+            if (missingCurrent)
+              DropdownMenuItem<int?>(
+                value: current,
+                child: Text(widget.existing?.sapAccountName ?? 'Actual'),
+              ),
+          ],
+          onChanged: (v) => setState(() => _sapAccountId = v),
+        );
+      },
+    );
   }
 
   @override
@@ -198,6 +258,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
                         prefixIcon: Icon(Icons.tag_rounded),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    _sapAccountField(),
                     const SizedBox(height: 8),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,

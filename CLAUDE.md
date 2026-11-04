@@ -60,6 +60,12 @@ and the one place worth decoupling for testing.
 - **No multi-branch (SAP Branches).** Confirmed not used by this client.
 - **Users/roles live in our own SQL Server DB**, independent of SAP users.
   A `User` links to SAP only via `SalesEmployeeCode` (a string, not an FK).
+- **Reps only see their own customers** (client decision 2026-11-04): customers
+  are scoped by SAP `SalesPersonCode` (OCRD.SlpCode) = the user's
+  `SalesEmployeeCode` — in search, detail, contacts, and enforced again on
+  `POST /api/orders` and duplicate. Administrators see all. A rep without a
+  `SalesEmployeeCode` sees **none**; customers with no salesperson in SAP are
+  visible only to Administrators. Logic lives in `CustomerScope`.
 - **Numbering series are SAP's**, we only store which SAP series a user is
   allowed to use (`UserSalesSeries.SapSeriesId`) — never replicate SAP's
   series catalog locally.
@@ -92,11 +98,23 @@ not the local filesystem — required for on-premise portability.
 
 ## SapSessionManager (Infrastructure/SapServiceLayer/)
 
-Singleton. Holds the `B1SESSION` (+`ROUTEID` if present) cookie in memory,
-tracks expiry with a 1-minute safety margin, thread-safe renewal via
-`SemaphoreSlim`. `SapClient` retries once on 401 by calling
-`ForceRenewAsync()`. Config is lazy-loaded from `Parameters` on first use and
-cached — call `InvalidateConfig()` after changing SAP parameters at runtime.
+Singleton. Holds one `B1SESSION` (+`ROUTEID` if present) cookie **per SAP
+account** in memory, tracks expiry with a 1-minute safety margin, thread-safe
+renewal via a `SemaphoreSlim` per account. `SapClient` retries once on 401 by
+calling `ForceRenewAsync()`. Config is lazy-loaded from `Parameters` on first
+use and cached — call `InvalidateConfig()` after changing SAP parameters at
+runtime, `InvalidateAccount(id)` after editing a `SapAccount`.
+
+**Per-user SAP accounts (2026-11-04):** `SapAccounts` (Name, encrypted
+Username/Password, IsActive) is an admin-managed catalog; `User.SapAccountId`
+assigns one (several users may share it, and then share its session). The
+JWT carries it as the `sapAccountId` claim; `ISapAccountContext` (Core,
+implemented in Api from the claim) tells `SapClient` which session to use.
+No account / no HTTP user / inactive or deleted account → the **technical
+account** in `Parameters`. `BaseUrl`/`CompanyDb` stay global in `Parameters`.
+Credentials are verified with a real SAP login (then Logout) before saving
+(`POST/PUT /api/sap-accounts`, Administrator only). Reassigning a user's
+account applies on their next login/refresh (it's a JWT claim).
 
 ## Current state (as of this file's creation)
 

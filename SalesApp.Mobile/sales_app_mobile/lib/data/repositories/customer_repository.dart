@@ -9,11 +9,14 @@ class CustomerRepository {
   CustomerRepository({required Dio dio}) : _dio = dio;
 
   /// GET /api/customers?search= — empty search returns the first page.
+  /// The text is sent in uppercase (client request: SAP's contains() is
+  /// case-sensitive); the search box keeps showing what was typed.
   Future<List<Customer>> search(String query) async {
     try {
       final resp = await _dio.get(
         '/api/customers',
-        queryParameters: query.isEmpty ? null : {'search': query},
+        queryParameters:
+            query.isEmpty ? null : {'search': query.toUpperCase()},
       );
       final data = resp.data as List<dynamic>;
       return data

@@ -114,6 +114,7 @@ class OrderRepository {
               'salesUnitOfMeasure': ?l.salesUnitOfMeasure,
               'quantityInLiters': ?l.quantityInLiters,
               'unitPrice': ?l.unitPrice,
+              'currency': ?l.currency,
               'warehouseCode': ?l.warehouseCode,
               'projectCode': ?l.projectCode,
               'branchCode': ?l.branchCode,

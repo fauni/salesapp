@@ -29,6 +29,7 @@ public class UsersController : ControllerBase
     {
         var users = await _db.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .Include(u => u.SapAccount)
             .OrderBy(u => u.Username)
             .ToListAsync(ct);
 
@@ -41,6 +42,7 @@ public class UsersController : ControllerBase
     {
         var user = await _db.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .Include(u => u.SapAccount)
             .FirstOrDefaultAsync(u => u.Id == id, ct);
 
         if (user == null) return NotFound(new { message = "User not found." });
@@ -63,12 +65,16 @@ public class UsersController : ControllerBase
         if (role == null)
             return BadRequest(new { message = "Invalid RoleId." });
 
+        var (sapAccount, sapAccountError) = await FindSapAccountAsync(request.SapAccountId, ct);
+        if (sapAccountError != null) return BadRequest(new { message = sapAccountError });
+
         var user = new User
         {
             Username = request.Username,
             PasswordHash = PasswordHasher.Hash(request.Password),
             SalesEmployeeCode = string.IsNullOrWhiteSpace(request.SalesEmployeeCode)
                 ? null : request.SalesEmployeeCode,
+            SapAccount = sapAccount,
             IsActive = request.IsActive
         };
         user.UserRoles.Add(new UserRole { Role = role });
@@ -90,6 +96,7 @@ public class UsersController : ControllerBase
     {
         var user = await _db.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .Include(u => u.SapAccount)
             .FirstOrDefaultAsync(u => u.Id == id, ct);
         if (user == null) return NotFound(new { message = "User not found." });
 
@@ -102,6 +109,19 @@ public class UsersController : ControllerBase
         if (role == null)
             return BadRequest(new { message = "Invalid RoleId." });
 
+        // Keeping the current (possibly since-deactivated) account is allowed;
+        // only a newly chosen one must be active.
+        SapAccount? sapAccount = user.SapAccount;
+        if (request.SapAccountId != user.SapAccountId)
+        {
+            string? sapAccountError;
+            (sapAccount, sapAccountError) = await FindSapAccountAsync(request.SapAccountId, ct);
+            if (sapAccountError != null) return BadRequest(new { message = sapAccountError });
+        }
+
+        // Takes effect on the user's next login/refresh (it travels in the JWT).
+        user.SapAccount = sapAccount;
+        user.SapAccountId = sapAccount?.Id;
         user.SalesEmployeeCode = string.IsNullOrWhiteSpace(request.SalesEmployeeCode)
             ? null : request.SalesEmployeeCode;
         user.IsActive = request.IsActive;
@@ -141,6 +161,17 @@ public class UsersController : ControllerBase
 
     // --- helpers ---
 
+    // null id = technical account (no assignment). Only active accounts can be
+    // newly assigned.
+    private async Task<(SapAccount? Account, string? Error)> FindSapAccountAsync(
+        int? sapAccountId, CancellationToken ct)
+    {
+        if (sapAccountId is null) return (null, null);
+        var account = await _db.SapAccounts
+            .FirstOrDefaultAsync(a => a.Id == sapAccountId && a.IsActive, ct);
+        return account == null ? (null, "Invalid or inactive SapAccountId.") : (account, null);
+    }
+
     private bool IsCurrentUser(int id)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -155,6 +186,8 @@ public class UsersController : ControllerBase
             Id = user.Id,
             Username = user.Username,
             SalesEmployeeCode = user.SalesEmployeeCode,
+            SapAccountId = user.SapAccountId,
+            SapAccountName = user.SapAccount?.Name,
             IsActive = user.IsActive,
             RoleId = role?.Id ?? 0,
             RoleName = role?.Name ?? string.Empty,

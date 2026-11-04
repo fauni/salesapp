@@ -25,6 +25,11 @@ public class TokenService
         if (!string.IsNullOrEmpty(user.SalesEmployeeCode))
             claims.Add(new Claim("salesEmployeeCode", user.SalesEmployeeCode));
 
+        // SAP account the backend logs in to the Service Layer as for this user
+        // (SapAccountContext reads it). Absent = technical account.
+        if (user.SapAccountId.HasValue)
+            claims.Add(new Claim("sapAccountId", user.SapAccountId.Value.ToString()));
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 

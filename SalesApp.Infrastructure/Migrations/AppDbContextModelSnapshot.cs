@@ -281,6 +281,44 @@ namespace SalesApp.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SalesApp.Core.Entities.SapAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("SapAccounts");
+                });
+
             modelBuilder.Entity("SalesApp.Core.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -303,12 +341,17 @@ namespace SalesApp.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int?>("SapAccountId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SapAccountId");
 
                     b.HasIndex("Username")
                         .IsUnique();
@@ -379,6 +422,16 @@ namespace SalesApp.Infrastructure.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("SalesApp.Core.Entities.User", b =>
+                {
+                    b.HasOne("SalesApp.Core.Entities.SapAccount", "SapAccount")
+                        .WithMany("Users")
+                        .HasForeignKey("SapAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("SapAccount");
+                });
+
             modelBuilder.Entity("SalesApp.Core.Entities.UserRole", b =>
                 {
                     b.HasOne("SalesApp.Core.Entities.Role", "Role")
@@ -412,6 +465,11 @@ namespace SalesApp.Infrastructure.Migrations
             modelBuilder.Entity("SalesApp.Core.Entities.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("SalesApp.Core.Entities.SapAccount", b =>
+                {
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("SalesApp.Core.Entities.User", b =>

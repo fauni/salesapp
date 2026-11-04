@@ -11,6 +11,11 @@ class AppUser extends Equatable {
   final int id;
   final String username;
   final String? salesEmployeeCode;
+
+  /// SAP account the backend connects to SAP as for this user; null = the
+  /// technical account configured on the server.
+  final int? sapAccountId;
+  final String? sapAccountName;
   final bool isActive;
   final int roleId;
   final String roleName;
@@ -20,6 +25,8 @@ class AppUser extends Equatable {
     required this.id,
     required this.username,
     this.salesEmployeeCode,
+    this.sapAccountId,
+    this.sapAccountName,
     required this.isActive,
     required this.roleId,
     required this.roleName,
@@ -31,8 +38,17 @@ class AppUser extends Equatable {
   Map<String, dynamic> toJson() => _$AppUserToJson(this);
 
   @override
-  List<Object?> get props =>
-      [id, username, salesEmployeeCode, isActive, roleId, roleName, createdAt];
+  List<Object?> get props => [
+        id,
+        username,
+        salesEmployeeCode,
+        sapAccountId,
+        sapAccountName,
+        isActive,
+        roleId,
+        roleName,
+        createdAt
+      ];
 }
 
 /// The 3 roles seeded server-side (SalesApp.Core Role table) — fixed catalog,

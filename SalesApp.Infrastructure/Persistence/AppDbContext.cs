@@ -19,6 +19,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<CatalogCacheEntry> CatalogCache => Set<CatalogCacheEntry>();
     public DbSet<AllowedWarehouse> AllowedWarehouses => Set<AllowedWarehouse>();
+    public DbSet<SapAccount> SapAccounts => Set<SapAccount>();
     public DbSet<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey> DataProtectionKeys => Set<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -29,6 +30,21 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             entity.Property(u => u.Username).HasMaxLength(100).IsRequired();
             entity.Property(u => u.PasswordHash).IsRequired();
             entity.Property(u => u.SalesEmployeeCode).HasMaxLength(20);
+
+            // Restrict: an account still assigned to users can't be deleted.
+            entity.HasOne(u => u.SapAccount)
+                  .WithMany(a => a.Users)
+                  .HasForeignKey(u => u.SapAccountId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SapAccount>(entity =>
+        {
+            entity.Property(a => a.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(a => a.Name).IsUnique();
+            // Encrypted payloads are much longer than the plain values.
+            entity.Property(a => a.Username).IsRequired();
+            entity.Property(a => a.Password).IsRequired();
         });
 
         modelBuilder.Entity<Role>(entity =>

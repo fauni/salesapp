@@ -10,6 +10,8 @@ public class UserDto
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string? SalesEmployeeCode { get; set; }
+    public int? SapAccountId { get; set; }                  // null = technical account
+    public string? SapAccountName { get; set; }
     public bool IsActive { get; set; }
     public int RoleId { get; set; }
     public string RoleName { get; set; } = string.Empty;
@@ -21,6 +23,7 @@ public class CreateUserRequest
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public string? SalesEmployeeCode { get; set; }
+    public int? SapAccountId { get; set; }                  // null = technical account
     public int RoleId { get; set; }
     public bool IsActive { get; set; } = true;
 }
@@ -28,6 +31,7 @@ public class CreateUserRequest
 public class UpdateUserRequest
 {
     public string? SalesEmployeeCode { get; set; }
+    public int? SapAccountId { get; set; }                  // null = technical account
     public int RoleId { get; set; }
     public bool IsActive { get; set; }
 }

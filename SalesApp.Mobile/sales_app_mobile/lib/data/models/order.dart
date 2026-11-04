@@ -83,6 +83,9 @@ class OrderLine {
   /// SAP line UDF `U_TF_CANTLT` — liters for items sold by liters.
   final double? quantityInLiters;
   final double? unitPrice;
+
+  /// SAP line `Currency` — currency of [unitPrice].
+  final String? currency;
   final double lineTotal;
   final String? warehouseCode;
   final String? projectCode;
@@ -96,6 +99,7 @@ class OrderLine {
     this.salesUnitOfMeasure,
     this.quantityInLiters,
     this.unitPrice,
+    this.currency,
     required this.lineTotal,
     this.warehouseCode,
     this.projectCode,

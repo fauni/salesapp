@@ -42,8 +42,14 @@ public class CustomersController : ControllerBase
     public async Task<ActionResult<IEnumerable<CustomerDto>>> Search(
         [FromQuery] string? search, CancellationToken ct)
     {
+        // Reps only see their own customers (see CustomerScope).
+        var scope = CustomerScope.For(User);
+        if (scope.None) return Ok(Array.Empty<CustomerDto>());
+
         // CardType is a SAP enum; the customer value is 'cCustomer'.
         var filter = "CardType eq 'cCustomer'";
+        if (scope.ODataFilter is string scopeFilter)
+            filter += $" and {scopeFilter}";
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -74,6 +80,9 @@ public class CustomersController : ControllerBase
     [HttpGet("{code}")]
     public async Task<ActionResult<CustomerDetailDto>> Detail(string code, CancellationToken ct)
     {
+        var scope = CustomerScope.For(User);
+        if (scope.None) return CustomerNotFound();
+
         var key = code.Replace("'", "''");
         var query = $"BusinessPartners('{Uri.EscapeDataString(key)}')?$select={CustomerDetailSelect}";
 
@@ -97,6 +106,8 @@ public class CustomersController : ControllerBase
             PaymentTermsGroupCode = IntOrNull(e, "PayTermsGrpCode"),
             SalesPersonCode = IntOrNull(e, "SalesPersonCode")
         };
+
+        if (!scope.Allows(dto.SalesPersonCode)) return CustomerNotFound();
 
         if (dto.PriceListNum is int priceList)
         {
@@ -127,12 +138,17 @@ public class CustomersController : ControllerBase
     public async Task<ActionResult<IEnumerable<CustomerContactDto>>> Contacts(
         string code, CancellationToken ct)
     {
+        var scope = CustomerScope.For(User);
+        if (scope.None) return CustomerNotFound();
+
         var key = code.Replace("'", "''");
-        var query = $"BusinessPartners('{Uri.EscapeDataString(key)}')?$select=CardCode,ContactEmployees";
+        var query = $"BusinessPartners('{Uri.EscapeDataString(key)}')"
+                  + "?$select=CardCode,SalesPersonCode,ContactEmployees";
 
         var json = await _sapClient.GetAsync(query, ct);
 
         using var doc = JsonDocument.Parse(json);
+        if (!scope.Allows(IntOrNull(doc.RootElement, "SalesPersonCode"))) return CustomerNotFound();
         if (!doc.RootElement.TryGetProperty("ContactEmployees", out var contacts)
             || contacts.ValueKind != JsonValueKind.Array)
         {
@@ -142,6 +158,10 @@ public class CustomersController : ControllerBase
         var result = contacts.EnumerateArray().Select(MapContact).ToList();
         return Ok(result);
     }
+
+    // 404 (not 403) for another rep's customer: don't reveal that it exists.
+    private NotFoundObjectResult CustomerNotFound() =>
+        NotFound(new { message = "Customer not found." });
 
     private static CustomerDto MapCustomer(JsonElement e) => new()
     {

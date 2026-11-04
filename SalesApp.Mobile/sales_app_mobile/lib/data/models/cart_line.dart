@@ -18,6 +18,11 @@ class CartLine extends Equatable {
   /// submit when this is null.
   final double? unitPrice;
 
+  /// SAP currency code of [unitPrice] — the one shown next to the price when
+  /// the line was configured. Sent as the SAP line `Currency`; without it SAP
+  /// would read the price in the document (customer) currency.
+  final String? currency;
+
   final String? warehouseCode;
 
   /// SAP project this line is tagged with. Set from the order-wide project
@@ -35,6 +40,7 @@ class CartLine extends Equatable {
     this.salesUnitOfMeasure,
     this.quantityInLiters,
     this.unitPrice,
+    this.currency,
     this.warehouseCode,
     this.projectCode,
     this.branchCode,
@@ -55,6 +61,7 @@ class CartLine extends Equatable {
         salesUnitOfMeasure: salesUnitOfMeasure,
         quantityInLiters: quantityInLiters,
         unitPrice: unitPrice,
+        currency: currency,
         warehouseCode: warehouseCode,
         projectCode: keepProjectCode ? this.projectCode : projectCode,
         branchCode: keepBranchCode ? this.branchCode : branchCode,
@@ -68,6 +75,7 @@ class CartLine extends Equatable {
         salesUnitOfMeasure,
         quantityInLiters,
         unitPrice,
+        currency,
         warehouseCode,
         projectCode,
         branchCode

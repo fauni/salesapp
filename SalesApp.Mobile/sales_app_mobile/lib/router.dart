@@ -11,6 +11,8 @@ import 'blocs/items/items_bloc.dart';
 import 'blocs/order_detail/order_detail_bloc.dart';
 import 'blocs/orders/orders_bloc.dart';
 import 'blocs/submit_order/submit_order_bloc.dart';
+import 'blocs/sap_accounts/sap_account_form_bloc.dart';
+import 'blocs/sap_accounts/sap_accounts_bloc.dart';
 import 'blocs/users/user_form_bloc.dart';
 import 'blocs/users/users_bloc.dart';
 import 'blocs/warehouses/warehouses_bloc.dart';
@@ -19,9 +21,11 @@ import 'core/page_transition.dart';
 import 'data/models/app_user.dart';
 import 'data/models/customer.dart';
 import 'data/models/order.dart';
+import 'data/models/sap_account.dart';
 import 'data/repositories/customer_repository.dart';
 import 'data/repositories/item_repository.dart';
 import 'data/repositories/order_repository.dart';
+import 'data/repositories/sap_account_repository.dart';
 import 'data/repositories/user_repository.dart';
 import 'data/repositories/warehouse_repository.dart';
 import 'ui/customers/client_picker_screen.dart';
@@ -34,6 +38,8 @@ import 'ui/orders/order_detail_screen.dart';
 import 'ui/orders/order_summary_screen.dart';
 import 'ui/profile/profile_screen.dart';
 import 'ui/splash/splash_screen.dart';
+import 'ui/sap_accounts/sap_account_form_screen.dart';
+import 'ui/sap_accounts/sap_accounts_screen.dart';
 import 'ui/users/user_form_screen.dart';
 import 'ui/users/users_screen.dart';
 import 'ui/warehouses/warehouses_screen.dart';
@@ -277,6 +283,42 @@ GoRouter buildRouter(AuthBloc authBloc) {
             BlocProvider(
               create: (context) => UserFormBloc(context.read<UserRepository>()),
               child: UserFormScreen(existing: user),
+            ),
+          );
+        },
+      ),
+      // Admin-only "Usuarios SAP" — same gating as "Usuarios" (drawer item
+      // hidden, SapAccountsController is [Authorize(Roles = "Administrator")]).
+      GoRoute(
+        path: '/sap-accounts',
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                SapAccountsBloc(context.read<SapAccountRepository>())
+                  ..add(const SapAccountsStarted()),
+            child: const SapAccountsScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/sap-accounts/new',
+        pageBuilder: (context, _) => appPage(
+          BlocProvider(
+            create: (context) =>
+                SapAccountFormBloc(context.read<SapAccountRepository>()),
+            child: const SapAccountFormScreen(),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/sap-accounts/:id/edit',
+        pageBuilder: (context, state) {
+          final account = state.extra as SapAccount?;
+          return appPage(
+            BlocProvider(
+              create: (context) =>
+                  SapAccountFormBloc(context.read<SapAccountRepository>()),
+              child: SapAccountFormScreen(existing: account),
             ),
           );
         },

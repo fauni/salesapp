@@ -57,6 +57,8 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "An order needs at least one line." });
         if (!PickupByValues.IsValid(request.PickupBy))
             return BadRequest(new { message = "PickupBy is required: C, V or T." });
+        if (!await IsCustomerAllowedAsync(request.CustomerCode, ct))
+            return BadRequest(new { message = "Customer not allowed." });
 
         var warehouseError = await ValidateWarehousesAsync(request.Lines, ct);
         if (warehouseError != null) return BadRequest(new { message = warehouseError });
@@ -231,6 +233,9 @@ public class OrdersController : ControllerBase
         using (var srcDoc = JsonDocument.Parse(srcJson))
             source = MapOrder(srcDoc.RootElement, OrderStatus.Approved);
         if (!IsOwnedByCaller(source)) return OrderNotFound();
+        // The customer may have been reassigned to another salesperson since.
+        if (!await IsCustomerAllowedAsync(source.CustomerCode, ct))
+            return BadRequest(new { message = "Customer not allowed." });
 
         // Rebuild a fresh create request from the source. Dates and doc numbers are
         // left to SAP; prices are NOT copied so the new order re-prices against the
@@ -279,6 +284,22 @@ public class OrdersController : ControllerBase
         return invalid.Count == 0
             ? null
             : $"Warehouse not allowed: {string.Join(", ", invalid)}.";
+    }
+
+    // Reps may only order for their own customers (see CustomerScope) — checked
+    // here too, not just in the customer list, since the code could be typed
+    // in by hand. Administrators skip the SAP lookup.
+    private async Task<bool> IsCustomerAllowedAsync(string customerCode, CancellationToken ct)
+    {
+        var scope = CustomerScope.For(User);
+        if (scope.All) return true;
+        if (scope.None) return false;
+
+        var key = Uri.EscapeDataString(customerCode.Replace("'", "''"));
+        var json = await _sapClient.GetAsync(
+            $"BusinessPartners('{key}')?$select=CardCode,SalesPersonCode", ct);
+        using var doc = JsonDocument.Parse(json);
+        return scope.Allows(Int(doc.RootElement, "SalesPersonCode"));
     }
 
     // SAP error code Service Layer returns when an Approval Procedure turned
@@ -500,7 +521,15 @@ public class OrdersController : ControllerBase
             // UnitPrice from it. (Setting UnitPrice instead is wrong when the
             // document works with gross prices — SAP overwrites it.)
             if (l.UnitPrice.HasValue)
+            {
                 line["PriceAfterVAT"] = l.UnitPrice.Value;
+                // The price's own currency. Omitted, SAP takes the number in
+                // the document currency (the customer's) — e.g. a 10 USD list
+                // price saved as 10 Bs. With it, SAP converts at the day's
+                // exchange rate (which must exist in SAP for that currency).
+                if (!string.IsNullOrWhiteSpace(l.Currency))
+                    line["Currency"] = l.Currency.Trim();
+            }
             if (!string.IsNullOrWhiteSpace(l.WarehouseCode))
                 line["WarehouseCode"] = l.WarehouseCode;
             if (!string.IsNullOrWhiteSpace(l.ProjectCode))
@@ -623,6 +652,7 @@ public class OrdersController : ControllerBase
                     // Surface the gross (VAT-inclusive) price the rep entered —
                     // SAP's PriceAfterVAT — falling back to the net UnitPrice.
                     UnitPrice = Dec(l, "PriceAfterVAT") ?? Dec(l, "UnitPrice"),
+                    Currency = Str(l, "Currency"),
                     LineTotal = Dec(l, "LineTotal") ?? 0m,
                     WarehouseCode = Str(l, "WarehouseCode"),
                     ProjectCode = Str(l, "ProjectCode"),

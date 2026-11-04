@@ -40,6 +40,12 @@ public class CreateOrderLineRequest
     public decimal? QuantityInLiters { get; set; }           // -> SAP line UDF U_TF_CANTLT
 
     public decimal? UnitPrice { get; set; }                  // optional; SAP resolves from price list if null
+
+    // Currency of UnitPrice — the one the rep saw next to the price (price
+    // list's, else the customer's). Without it SAP reads the price in the
+    // document currency, i.e. the same number in a different currency.
+    public string? Currency { get; set; }                    // -> SAP line Currency
+
     public string? WarehouseCode { get; set; }
     public string? ProjectCode { get; set; }                 // -> SAP line ProjectCode
     public string? BranchCode { get; set; }                  // "Sucursal" -> SAP line CostingCode2 (DistributionRules.FactorCode)
@@ -108,6 +114,7 @@ public class OrderLineDto
     public string? SalesUnitOfMeasure { get; set; }          // SAP UoMCode / MeasureUnit
     public decimal? QuantityInLiters { get; set; }           // SAP line UDF U_TF_CANTLT
     public decimal? UnitPrice { get; set; }
+    public string? Currency { get; set; }                    // SAP line Currency (of UnitPrice)
     public decimal LineTotal { get; set; }
     public string? WarehouseCode { get; set; }
     public string? ProjectCode { get; set; }

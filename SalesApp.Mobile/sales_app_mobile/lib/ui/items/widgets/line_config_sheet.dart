@@ -59,10 +59,10 @@ Future<LineSheetResult?> showLineConfigSheet(
 /// orders).
 const _localCurrency = 'BS';
 
-/// Currency label for the price field — DISPLAY ONLY (orders are sent without
-/// a currency; SAP applies its configured one). The price list's currency when
-/// the price comes from a list, else the customer's assigned currency, else
-/// [_localCurrency] for "##"/unset.
+/// Currency of the price field — shown next to it AND saved on the cart line
+/// (sent to SAP as the line `Currency`, so the price keeps the currency the rep
+/// saw). The price list's currency when the price comes from a list, else the
+/// customer's assigned currency, else [_localCurrency] for "##"/unset.
 String _priceCurrency(ItemPrice? listPrice, String? customerCurrency) {
   final fromList = listPrice?.currency?.trim() ?? '';
   if (fromList.isNotEmpty) return fromList;
@@ -102,7 +102,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
   late final TextEditingController _priceController;
   String? _priceError;
 
-  /// Currency shown next to the price (display only, see _priceCurrency).
+  /// Currency of the price (shown next to it and saved on the line).
   late final String _currency;
 
   // Sell-by-liters mode only (see showLineConfigSheet).
@@ -162,7 +162,8 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
     _priceController = TextEditingController(
         text: shownPrice == null ? '' : _plainNumber(shownPrice));
     _priceListSource = e == null ? matchedPrice?.priceList : null;
-    _currency = _priceCurrency(matchedPrice, widget.customerCurrency);
+    _currency =
+        e?.currency ?? _priceCurrency(matchedPrice, widget.customerCurrency);
     _warehouseCode = e?.warehouseCode ??
         (widget.item.warehouses.isNotEmpty
             ? widget.item.warehouses.first.warehouseCode
@@ -336,6 +337,7 @@ class _LineConfigSheetState extends State<_LineConfigSheet> {
       salesUnitOfMeasure: _uomCode,
       quantityInLiters: _byLiters ? _liters : null,
       unitPrice: price,
+      currency: _currency,
       warehouseCode: _warehouseCode,
     )));
   }

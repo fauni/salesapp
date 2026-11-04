@@ -30,6 +30,7 @@ class UserFormBloc extends Bloc<UserFormEvent, UserFormState> {
         username: event.username,
         password: event.password,
         salesEmployeeCode: event.salesEmployeeCode,
+        sapAccountId: event.sapAccountId,
         roleId: event.roleId,
         isActive: event.isActive,
       );
@@ -49,6 +50,7 @@ class UserFormBloc extends Bloc<UserFormEvent, UserFormState> {
       final user = await _repository.update(
         event.id,
         salesEmployeeCode: event.salesEmployeeCode,
+        sapAccountId: event.sapAccountId,
         roleId: event.roleId,
         isActive: event.isActive,
       );

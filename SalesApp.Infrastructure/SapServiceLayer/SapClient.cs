@@ -11,12 +11,18 @@ public class SapClient : ISapServiceLayerClient
 {
     private readonly HttpClient _httpClient;
     private readonly SapSessionManager _sessionManager;
+    private readonly ISapAccountContext _accountContext;
     private readonly ILogger<SapClient> _logger;
 
-    public SapClient(HttpClient httpClient, SapSessionManager sessionManager, ILogger<SapClient> logger)
+    public SapClient(
+        HttpClient httpClient,
+        SapSessionManager sessionManager,
+        ISapAccountContext accountContext,
+        ILogger<SapClient> logger)
     {
         _httpClient = httpClient;
         _sessionManager = sessionManager;
+        _accountContext = accountContext;
         _logger = logger;
     }
 
@@ -37,7 +43,7 @@ public class SapClient : ISapServiceLayerClient
         // than expected): force a fresh login and retry exactly once.
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            await _sessionManager.ForceRenewAsync(ct);
+            await _sessionManager.ForceRenewAsync(_accountContext.SapAccountId, ct);
             response = await ExecuteAsync(method, resourcePath, body, ct);
         }
 
@@ -55,7 +61,9 @@ public class SapClient : ISapServiceLayerClient
 
     private async Task<HttpResponseMessage> ExecuteAsync(HttpMethod method, string resourcePath, object? body, CancellationToken ct)
     {
-        var cookie = await _sessionManager.GetSessionCookieAsync(ct);
+        // The caller's SAP account (several app users may share one); null =
+        // the technical account from Parameters.
+        var cookie = await _sessionManager.GetSessionCookieAsync(_accountContext.SapAccountId, ct);
         _httpClient.BaseAddress ??= new Uri(_sessionManager.BaseUrl.TrimEnd('/') + "/");
 
         var request = new HttpRequestMessage(method, resourcePath);

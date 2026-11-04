@@ -110,7 +110,7 @@ request. Un `401` real → limpiar token y mandar a login.
 
 - `POST /api/orders` — body:
   `{ customerCode, salesPersonCode?, series?, dueDate?, comments?,
-     lines: [ { itemCode, quantity, salesUnitOfMeasure?, unitPrice?, warehouseCode? } ] }`
+     lines: [ { itemCode, quantity, salesUnitOfMeasure?, unitPrice?, currency?, warehouseCode? } ] }`
   → 201 `OrderDto` · 400 si falta customerCode o no hay líneas.
   - `pickupBy` **obligatorio**: `"C"` Cliente · `"V"` Vendedor · `"T"` Transporte
     tercerizado → UDF de cabecera SAP `U_SL_Recoge` (400 si falta o es inválido).
@@ -134,7 +134,7 @@ borrador se pide con `?status=…&draft=true` (`Order.detailPath`).
 `{ id, docNum, customerCode, customerName, docDate, dueDate, salesPersonCode,
    series, comments, status, isDraft, docTotal,
    lines: [ { lineNum, itemCode, description, quantity, salesUnitOfMeasure,
-              unitPrice, lineTotal, warehouseCode } ] }`
+              unitPrice, currency, lineTotal, warehouseCode } ] }`
 
 `status` ∈ { "pending", "approved", "rejected" }.
 

@@ -39,6 +39,7 @@ class UserRepository {
     required String username,
     required String password,
     String? salesEmployeeCode,
+    int? sapAccountId,
     required int roleId,
     bool isActive = true,
   }) async {
@@ -47,6 +48,7 @@ class UserRepository {
         'username': username,
         'password': password,
         'salesEmployeeCode': ?salesEmployeeCode,
+        'sapAccountId': ?sapAccountId,
         'roleId': roleId,
         'isActive': isActive,
       });
@@ -57,15 +59,18 @@ class UserRepository {
   }
 
   /// PUT /api/users/{id} — Username isn't editable (see backend UsersController).
+  /// [sapAccountId] null = technical account (unassigns any current one).
   Future<AppUser> update(
     int id, {
     String? salesEmployeeCode,
+    int? sapAccountId,
     required int roleId,
     required bool isActive,
   }) async {
     try {
       final resp = await _dio.put('/api/users/$id', data: {
         'salesEmployeeCode': ?salesEmployeeCode,
+        'sapAccountId': ?sapAccountId,
         'roleId': roleId,
         'isActive': isActive,
       });

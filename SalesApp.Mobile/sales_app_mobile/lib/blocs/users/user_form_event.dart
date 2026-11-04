@@ -10,6 +10,7 @@ class UserFormCreateSubmitted extends UserFormEvent {
   final String username;
   final String password;
   final String? salesEmployeeCode;
+  final int? sapAccountId;
   final int roleId;
   final bool isActive;
 
@@ -17,30 +18,34 @@ class UserFormCreateSubmitted extends UserFormEvent {
     required this.username,
     required this.password,
     this.salesEmployeeCode,
+    this.sapAccountId,
     required this.roleId,
     this.isActive = true,
   });
 
   @override
   List<Object?> get props =>
-      [username, password, salesEmployeeCode, roleId, isActive];
+      [username, password, salesEmployeeCode, sapAccountId, roleId, isActive];
 }
 
 class UserFormUpdateSubmitted extends UserFormEvent {
   final int id;
   final String? salesEmployeeCode;
+  final int? sapAccountId;
   final int roleId;
   final bool isActive;
 
   const UserFormUpdateSubmitted({
     required this.id,
     this.salesEmployeeCode,
+    this.sapAccountId,
     required this.roleId,
     required this.isActive,
   });
 
   @override
-  List<Object?> get props => [id, salesEmployeeCode, roleId, isActive];
+  List<Object?> get props =>
+      [id, salesEmployeeCode, sapAccountId, roleId, isActive];
 }
 
 class UserFormPasswordResetSubmitted extends UserFormEvent {

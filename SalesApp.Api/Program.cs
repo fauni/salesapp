@@ -23,6 +23,9 @@ builder.Services.AddDataProtection()
 
 // --- SAP Service Layer integration ---
 builder.Services.AddSingleton<SapSessionManager>();
+// Which SAP account each call logs in as — from the caller's JWT.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<ISapAccountContext, SalesApp.Api.Auth.SapAccountContext>();
 builder.Services.AddHttpClient("SapServiceLayer")
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
     {
